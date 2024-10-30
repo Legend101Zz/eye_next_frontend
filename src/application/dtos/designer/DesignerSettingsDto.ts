@@ -1,78 +1,123 @@
 /**
- * Data Transfer Object for designer settings
- * Controls visibility and preferences for designer profile
+ * Designer Settings Data Transfer Objects (DTOs)
+ * Handle designer preferences and settings
  *
- * @example
- * ```typescript
- * const settingsDto: DesignerSettingsDto = {
- *   isPrivate: false,
- *   showFollowers: true,
- *   featuredDesigns: ["design1", "design2"]
- * };
- * ```
+ * @module designer/dtos
+ */
+
+import { PayoutMethod } from "./types";
+
+/**
+ * Designer settings response DTO
  */
 export interface DesignerSettingsDto {
-  /** Profile privacy setting */
-  isPrivate: boolean;
-
-  /** Display preferences */
-  display: {
-    /** Show follower count */
-    showFollowers: boolean;
+  /** Designer ID */
+  designerId: string;
+  /** Privacy settings */
+  privacy: {
+    /** Profile visibility */
+    profileVisibility: "public" | "private" | "followers";
     /** Show earnings */
     showEarnings: boolean;
-    /** Show design count */
-    showDesignCount: boolean;
-    /** Show sale statistics */
+    /** Show statistics */
     showStats: boolean;
+    /** Show following list */
+    showFollowing: boolean;
+    /** Show design process */
+    showProcess: boolean;
   };
-
-  /** Content settings */
-  content: {
-    /** Featured designs IDs */
-    featuredDesigns: string[];
-    /** Pinned collections */
-    pinnedCollections: string[];
-    /** Showcase order */
-    showcaseOrder: ("designs" | "collections" | "about")[];
-  };
-
-  /** Notification preferences */
+  /** Notification settings */
   notifications: {
     /** Email notifications */
     email: {
       /** New orders */
       orders: boolean;
-      /** Design approvals */
-      approvals: boolean;
+      /** New followers */
+      followers: boolean;
+      /** Reviews */
+      reviews: boolean;
       /** Comments */
       comments: boolean;
-      /** Followers */
-      followers: boolean;
+      /** Promotions */
+      promotions: boolean;
     };
     /** Push notifications */
     push: {
       /** New orders */
       orders: boolean;
-      /** Messages */
-      messages: boolean;
+      /** New followers */
+      followers: boolean;
       /** Reviews */
       reviews: boolean;
+      /** Comments */
+      comments: boolean;
     };
   };
-
   /** Store settings */
   store: {
-    /** Default currency */
-    currency: string;
-    /** Automatic approval of orders */
-    autoApproveOrders: boolean;
-    /** Minimum order amount */
-    minimumOrderAmount?: number;
-    /** Bulk order discounts */
-    bulkDiscounts?: Array<{
-      quantity: number;
-      percentage: number;
+    /** Auto-approve products */
+    autoApproveProducts: boolean;
+    /** Default product visibility */
+    defaultVisibility: "public" | "private" | "draft";
+    /** Allowed product types */
+    allowedProductTypes: string[];
+    /** Price markup percentage */
+    priceMarkup: number;
+    /** Minimum price */
+    minimumPrice: number;
+  };
+  /** Payout settings */
+  payout: {
+    /** Payout method */
+    method: PayoutMethod;
+    /** Minimum payout amount */
+    minimumAmount: number;
+    /** Auto payout */
+    autoPayout: boolean;
+    /** Payout schedule */
+    schedule: "weekly" | "monthly";
+    /** Tax information submitted */
+    taxInfoSubmitted: boolean;
+  };
+  /** Collaboration settings */
+  collaboration: {
+    /** Accept collaborations */
+    acceptCollaborations: boolean;
+    /** Minimum commission percentage */
+    minimumCommission: number;
+    /** Automatic response message */
+    autoResponse?: string;
+  };
+  /** API access settings */
+  api: {
+    /** API enabled */
+    enabled: boolean;
+    /** API keys */
+    keys: Array<{
+      /** Key ID */
+      id: string;
+      /** Key name */
+      name: string;
+      /** Creation date */
+      createdAt: number;
+      /** Last used date */
+      lastUsedAt: number;
     }>;
   };
+}
+
+/**
+ * Update designer settings request DTO
+ */
+export interface UpdateDesignerSettingsRequestDto {
+  /** Privacy updates */
+  privacy?: Partial<DesignerSettingsDto["privacy"]>;
+  /** Notification updates */
+  notifications?: Partial<DesignerSettingsDto["notifications"]>;
+  /** Store updates */
+  store?: Partial<DesignerSettingsDto["store"]>;
+  /** Payout updates */
+  payout?: Partial<DesignerSettingsDto["payout"]>;
+  /** Collaboration updates */
+  collaboration?: Partial<DesignerSettingsDto["collaboration"]>;
 }

@@ -1,3 +1,5 @@
+import { DesignResponseDto } from "./DesignDto";
+
 /**
  * Data Transfer Object for design search queries
  * Used for filtering and searching designs
