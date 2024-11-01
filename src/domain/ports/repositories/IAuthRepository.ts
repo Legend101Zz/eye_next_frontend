@@ -35,7 +35,7 @@ export interface IAuthService {
    * @param profile - Google profile data
    * @returns Promise resolving to authenticated user
    */
-  googleAuth(profile: GoogleProfile): Promise<AuthUser>;
+  googleAuth(profile: GoogleProfile): Promise<void>;
 
   /**
    * Log out the current user

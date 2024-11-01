@@ -1,6 +1,6 @@
 "use client";
-import LoginForm from "@/components/auth/LoginForm";
-import { Button } from "@/components/ui/button";
+import LoginForm from "@/presentation/features/auth/LoginForm";
+import { Button } from "@/presentation/components/ui/button";
 import Link from "next/link";
 import React, { useState } from "react";
 

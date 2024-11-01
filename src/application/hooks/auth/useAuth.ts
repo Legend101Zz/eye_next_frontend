@@ -1,200 +1,150 @@
-/**
- * Authentication Hook
- * @module application/hooks/auth/useAuth
- *
- * @description
- * Primary hook for managing authentication state. Integrates with domain and infrastructure layers
- * to provide authentication functionality using proper DTOs and domain entities.
- *
- * Dependencies:
- * - AuthService from infrastructure layer
- * - Auth DTOs from application layer
- * - Auth entities from domain layer
- */
-
-import { useEffect, useState, useCallback } from "react";
+import { useSession, signIn, signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { AuthUser } from "@/domain/entities/auth.entity";
-import { IAuthService } from "@/domain/ports/repositories/IAuthRepository";
-import { LoginResponseDto } from "@/application/dtos/auth/LoginDto";
-import { UserProfileDto } from "@/application/dtos/user/UserProfileDto";
-import { toast } from "@/components/ui/use-toast";
-import { AuthError } from "@/application/dtos/common/errors";
-
-interface AuthState {
-  user: AuthUser | null;
-  session: {
-    accessToken: string | null;
-    refreshToken: string | null;
-    expiresAt: number | null;
-  };
-}
-
-export interface UseAuthReturn {
-  user: AuthUser | null;
-  isLoading: boolean;
-  error: AuthError | null;
-  isAuthenticated: boolean;
-  logout: () => Promise<void>;
-  refreshSession: () => Promise<void>;
-}
+import { useState, useCallback } from "react";
+import { AuthService } from "@/infrastructure/services/auth.service";
+import { UserCredentials } from "@/domain/entities/auth.entity";
 
 /**
- * Hook for managing authentication state
+ * ### Login Flow (Standard and Google OAuth)
  *
- * @param authService - Instance of IAuthService from infrastructure layer
- * @returns Authentication state and methods
+ * #### Standard Login Flow:
+ * 1. The component calls `useAuth().login()`.
+ * 2. `useAuth` invokes `AuthService.login()` to handle validation and business logic.
+ * 3. If the validation is successful, `useAuth` calls `NextAuth`'s `signIn()` method.
+ * 4. `NextAuth` creates a session based on the configuration in `authOptions`.
+ * 5. `NextAuth` maintains the session state, accessible through `useAuth`.
  *
- * @example
- * ```tsx
- * const { user, isLoading, isAuthenticated } = useAuth(authService);
- *
- * if (isLoading) return <Spinner />;
- * if (!isAuthenticated) return <LoginRedirect />;
- * ```
+ * #### Google OAuth Login Flow:
+ * 1. The component calls `useAuth().googleLogin()`.
+ * 2. `useAuth` invokes `NextAuth`'s `signIn("google")` to initiate Google OAuth login.
+ * 3. `NextAuth` manages the OAuth process using the `authOptions` configuration.
+ * 4. On successful authentication, `authOptions` callbacks sync user data with the database.
+ * 5. `NextAuth` creates and maintains a session, accessible through `useAuth`.
  */
-export const useAuth = (authService: IAuthService): UseAuthReturn => {
+
+// Create a singleton instance of AuthService
+const authService = new AuthService();
+
+export const useAuth = () => {
+  const { data: session, status } = useSession();
   const router = useRouter();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  // Initialize auth state with session check
-  const [authState, setAuthState] = useState<AuthState>({
-    user: null,
-    session: {
-      accessToken: null,
-      refreshToken: null,
-      expiresAt: null,
+  // Sign up new user
+  const signUp = useCallback(
+    async (credentials: UserCredentials) => {
+      try {
+        setLoading(true);
+        setError(null);
+
+        // Use AuthService to create the account
+        const user = await authService.signUp(credentials);
+
+        // After successful signup, log them in using Next-Auth
+        const result = await signIn("credentials", {
+          email: credentials.email,
+          password: credentials.password,
+          redirect: false,
+        });
+
+        if (result?.error) {
+          throw new Error(result.error);
+        }
+
+        router.push("/");
+        return user;
+      } catch (err) {
+        const message =
+          err instanceof Error ? err.message : "Failed to sign up";
+        setError(message);
+        throw err;
+      } finally {
+        setLoading(false);
+      }
     },
-  });
+    [router],
+  );
 
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<AuthError | null>(null);
+  // Log in with credentials
+  const login = useCallback(
+    async (credentials: UserCredentials) => {
+      try {
+        setLoading(true);
+        setError(null);
 
-  // Update auth state with DTO response
-  const updateAuthState = useCallback((response: LoginResponseDto | null) => {
-    if (!response) {
-      setAuthState({
-        user: null,
-        session: {
-          accessToken: null,
-          refreshToken: null,
-          expiresAt: null,
-        },
-      });
-      return;
+        // Use AuthService for validation and business logic
+        await authService.login(credentials);
+
+        // Use Next-Auth for session management
+        const result = await signIn("credentials", {
+          email: credentials.email,
+          password: credentials.password,
+          redirect: false,
+        });
+
+        if (result?.error) {
+          throw new Error(result.error);
+        }
+
+        router.push("/");
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Failed to login";
+        setError(message);
+        throw err;
+      } finally {
+        setLoading(false);
+      }
+    },
+    [router],
+  );
+
+  // Google OAuth login
+  const googleLogin = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      // Use Next-Auth for Google OAuth
+      await signIn("google", { callbackUrl: "/" });
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Failed to login with Google";
+      setError(message);
+      throw err;
+    } finally {
+      setLoading(false);
     }
-
-    // Map DTO to domain entity and state
-    setAuthState({
-      user: {
-        id: response.user.id,
-        email: response.user.email,
-        name: response.user.name,
-        isDesigner: response.user.isDesigner,
-        designerId: response.user.designerId,
-      },
-      session: {
-        accessToken: response.session.accessToken,
-        refreshToken: response.session.refreshToken || null,
-        expiresAt: response.session.expiresAt,
-      },
-    });
   }, []);
 
-  // Check authentication status on mount
-  useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        setIsLoading(true);
-        const response = await authService.getCurrentUser();
-        updateAuthState(response);
-      } catch (err) {
-        if (err instanceof AuthError) {
-          setError(err);
-        } else {
-          setError(new AuthError("AUTH_ERROR", "Authentication failed"));
-        }
-        updateAuthState(null);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    checkAuth();
-  }, [authService, updateAuthState]);
-
-  // Refresh session handler
-  const refreshSession = useCallback(async () => {
-    if (!authState.session.refreshToken) return;
-
-    try {
-      setIsLoading(true);
-      const response = await authService.refreshToken();
-      updateAuthState(response);
-    } catch (err) {
-      setError(
-        err instanceof AuthError
-          ? err
-          : new AuthError("REFRESH_ERROR", "Session refresh failed"),
-      );
-      // If refresh fails, logout
-      await logout();
-    } finally {
-      setIsLoading(false);
-    }
-  }, [authState.session.refreshToken, authService]);
-
-  // Logout handler
+  // Logout
   const logout = useCallback(async () => {
     try {
-      setIsLoading(true);
+      setLoading(true);
+      setError(null);
+
+      // Use AuthService for cleanup if needed
       await authService.logout();
-      updateAuthState(null);
-      router.push("/auth/login");
-      toast({
-        title: "Logged Out",
-        description: "You have been successfully logged out",
-      });
+
+      // Use Next-Auth for session cleanup
+      await signOut({ callbackUrl: "/" });
     } catch (err) {
-      setError(
-        err instanceof AuthError
-          ? err
-          : new AuthError("LOGOUT_ERROR", "Logout failed"),
-      );
-      toast({
-        title: "Logout Error",
-        description: "Failed to logout properly",
-        variant: "destructive",
-      });
+      const message = err instanceof Error ? err.message : "Failed to logout";
+      setError(message);
+      throw err;
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
-  }, [authService, router]);
-
-  // Auto refresh token before expiry
-  useEffect(() => {
-    const expiresAt = authState.session.expiresAt;
-    if (!expiresAt) return;
-
-    const timeUntilExpiry = expiresAt - Date.now();
-    const refreshBuffer = 5 * 60 * 1000; // 5 minutes
-
-    if (timeUntilExpiry < refreshBuffer) {
-      refreshSession();
-    }
-
-    const refreshTimer = setTimeout(
-      refreshSession,
-      timeUntilExpiry - refreshBuffer,
-    );
-    return () => clearTimeout(refreshTimer);
-  }, [authState.session.expiresAt, refreshSession]);
+  }, []);
 
   return {
-    user: authState.user,
-    isLoading,
+    user: session?.user,
+    isAuthenticated: !!session,
+    isLoading: status === "loading" || loading,
     error,
-    isAuthenticated: !!authState.user,
+    signUp,
+    login,
+    googleLogin,
     logout,
-    refreshSession,
   };
 };

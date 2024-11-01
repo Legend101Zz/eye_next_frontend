@@ -1,5 +1,5 @@
 "use client";
-import SignupForm from "@/presentation/components/auth/SignUpForm";
+import SignupForm from "@/presentation/features/auth/SignUpForm";
 import { Button } from "@/presentation/components/ui/button";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
