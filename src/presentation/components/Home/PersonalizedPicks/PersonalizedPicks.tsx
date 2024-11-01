@@ -1,10 +1,11 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import { getAllProducts } from "@/helpers/api/productApis";
+import { useFinalProducts } from "@/application/hooks/finalProduct/useFinalProduct";
 import {
   ProductCard,
   LoadingCard,
-} from "@/components/mainComponents/ProductCard";
+} from "@/presentation/components/mainComponents/ProductCard";
 
 interface ColorVariant {
   color: string;
@@ -30,23 +31,24 @@ interface ProductType {
 }
 
 const PersonalizedPicks = () => {
-  const [productData, setProductData] = useState<ProductType[]>([]);
-  const [loading, setLoading] = useState(true);
+  // Use the custom hook with specific parameters for latest products
+  const {
+    products: productData,
+    loading,
+    error,
+    fetchLatestProducts,
+  } = useFinalProducts({
+    shouldFetchOnMount: true,
+  });
 
-  useEffect(() => {
-    const fetchAllProducts = async () => {
-      try {
-        const data = await getAllProducts();
-        setProductData(data.products);
-        setLoading(false);
-        console.log(data.products);
-      } catch (error) {
-        console.error("Error fetching products:", error);
-        setLoading(false);
-      }
-    };
-    fetchAllProducts();
-  }, []);
+  // Handle error state
+  if (error) {
+    return (
+      <div className="text-red-500 text-center p-4">
+        Failed to load products: {error}
+      </div>
+    );
+  }
 
   return (
     <div className="md:px-5">
