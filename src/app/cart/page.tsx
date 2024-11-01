@@ -1,8 +1,8 @@
-import CartInvoice from "@/components/cart/CartInvoice";
-import CartProductCard from "@/components/cart/CartProductCard";
+import CartInvoice from "@/presentation/components/cart/CartInvoice";
+import CartProductCard from "@/presentation/components/cart/CartProductCard";
 import React from "react";
-import Wrapper from "@/components/Wrapper";
-import OrderSummary from "@/components/cart/OrderSummery";
+import Wrapper from "@/presentation/components/Wrapper";
+import OrderSummary from "@/presentation/components/cart/OrderSummery";
 
 type Props = {};
 

@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import EditorEngine from "@/components/Editor/EditorEngine";
+import EditorEngine from "@/presentation/components/Editor/EditorEngine";
 
 const dummyInitialState = {
   white: {

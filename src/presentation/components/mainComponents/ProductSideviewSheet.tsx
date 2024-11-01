@@ -1,6 +1,6 @@
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Button } from "@/presentation/components/ui/button";
+import { Input } from "@/presentation/components/ui/input";
+import { Label } from "@/presentation/components/ui/label";
 import { GrView } from "react-icons/gr";
 import {
   Sheet,
@@ -11,10 +11,12 @@ import {
   SheetHeader,
   SheetTitle,
   SheetTrigger,
-} from "@/components/ui/sheet";
+} from "@/presentation/components/ui/sheet";
 import Image from "next/image";
 import { useState } from "react";
-import { cn } from "@/lib/utils";
+import { cn } from "@/presentation/utils/tailwind-util";
+
+
 export function ProductSideviewSheet({
   imageUrl,
   price,

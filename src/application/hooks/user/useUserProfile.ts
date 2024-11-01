@@ -1,211 +1,248 @@
-/**
- * User Profile Hook
- * @module application/hooks/user/useUserProfile
- *
- * @description
- * Hook for managing user profile data and operations.
- * Handles profile viewing, updating, and image management.
- *
- * Dependencies:
- * - UserProfileDto, UpdateProfileRequestDto from application layer
- * - UserService from infrastructure layer
- * - User entity from domain layer
- */
-
-import { useState, useCallback, useEffect } from "react";
-import { IUserRepository } from "@/domain/ports/repositories/IUserRepository";
+import { useCallback, useEffect, useState } from "react";
+import { UserRepository } from "@/infrastructure/api/repositories/userRepository";
+import { ApiClient } from "@/infrastructure/api/client";
+import { CacheService } from "@/infrastructure/cache/cacheService";
 import {
-  UserProfileDto,
-  UpdateProfileRequestDto,
-  UpdateProfileResponseDto,
-} from "@/application/dtos/user/UserProfileDto";
-import { ValidationError, NotFoundError } from "@/domain/common/errors";
-import { toast } from "@/components/ui/use-toast";
-import { useAuth } from "../auth/useAuth";
+  User,
+  Address,
+  CartItem,
+  UserProfile,
+} from "@/domain/entities/user.entity";
+import { Redis } from "ioredis";
 
-export interface UseUserProfileReturn {
-  /** User profile data */
-  profile: UserProfileDto | null;
-  /** Loading state */
-  isLoading: boolean;
-  /** Error state */
-  error: Error | null;
-  /** Update profile function */
-  updateProfile: (data: UpdateProfileRequestDto) => Promise<boolean>;
-  /** Upload profile picture */
-  uploadProfilePicture: (file: File) => Promise<boolean>;
-  /** Refresh profile data */
-  refreshProfile: () => Promise<void>;
-}
+// Initialize Redis client
+const redis = new Redis(process.env.REDIS_URL || "redis://localhost:6379");
+
+// Initialize services
+const cacheService = new CacheService({
+  provider: "redis",
+  redisUrl: process.env.REDIS_URL,
+  maxSize: 1000,
+});
+
+const apiClient = new ApiClient({
+  baseURL: process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080",
+  cacheService,
+});
+
+const userRepository = new UserRepository(apiClient, cacheService);
 
 /**
- * Hook for managing user profile
+ * Custom hook for managing user data and operations
+ * Provides user profile management, cart operations, and following functionality
+ * Implements Redis caching for optimal performance
  *
- * @param userService - Instance of IUserService
- * @returns Profile management functionality and state
+ * @returns User management methods and state
  *
  * @example
  * ```tsx
- * const ProfilePage = () => {
- *   const { profile, isLoading, updateProfile } = useUserProfile(userService);
+ * const {
+ *   user,
+ *   loading,
+ *   error,
+ *   cart,
+ *   updateProfile,
+ *   addToCart,
+ *   removeFromCart,
+ *   followDesigner
+ * } = useUser('user123');
  *
- *   if (isLoading) return <Spinner />;
+ * if (loading) return <Loading />;
+ * if (error) return <Error message={error} />;
  *
- *   return (
- *     <div>
- *       <h1>Welcome {profile?.name}</h1>
- *       <ProfileUpdateForm onSubmit={updateProfile} />
- *     </div>
- *   );
- * };
+ * return (
+ *   <div>
+ *     <h1>Welcome {user?.profile.name}</h1>
+ *     <Cart items={cart} />
+ *   </div>
+ * );
  * ```
  */
-export const useUserProfile = (
-  userService: IUserRepository,
-): UseUserProfileReturn => {
-  const { user } = useAuth();
-  const [profile, setProfile] = useState<UserProfileDto | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
+export const useUser = (userId?: string) => {
+  // State
+  const [user, setUser] = useState<User | null>(null);
+  const [cart, setCart] = useState<CartItem[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Fetch user profile
-  const fetchProfile = useCallback(async () => {
-    if (!user?.id) return;
+  /**
+   * Fetch user data with caching
+   */
+  const fetchUser = useCallback(async () => {
+    if (!userId) {
+      setLoading(false);
+      return;
+    }
 
     try {
-      setIsLoading(true);
-      const response = await userService.getProfile(user.id);
-      setProfile(response);
-      setError(null);
+      setLoading(true);
+      const userData = await userRepository.findById(userId);
+      setUser(userData);
+
+      // Fetch cart data
+      const cartData = await userRepository.getCart(userId);
+      setCart(cartData);
     } catch (err) {
-      if (err instanceof NotFoundError) {
-        setError(new Error("Profile not found"));
-        toast({
-          title: "Error",
-          description: "Could not load profile",
-          variant: "destructive",
-        });
-      } else {
-        setError(
-          err instanceof Error ? err : new Error("Failed to load profile"),
-        );
-      }
+      setError(
+        err instanceof Error ? err.message : "Failed to fetch user data",
+      );
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
-  }, [user?.id, userService]);
+  }, [userId]);
 
-  // Load profile on mount and user change
+  /**
+   * Update user profile
+   * @param profile - Updated profile data
+   */
+  const updateProfile = async (profile: Partial<UserProfile>) => {
+    if (!userId) return;
+
+    try {
+      setLoading(true);
+      const updatedUser = await userRepository.updateProfile(userId, profile);
+      setUser(updatedUser);
+      return updatedUser;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to update profile");
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /**
+   * Add address to user profile
+   * @param address - New address to add
+   */
+  const addAddress = async (address: Omit<Address, "id">) => {
+    if (!userId) return;
+
+    try {
+      setLoading(true);
+      await userRepository.addAddress(userId, address);
+      await fetchUser(); // Refresh user data
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to add address");
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /**
+   * Add item to cart
+   * @param productId - Product ID to add
+   * @param quantity - Quantity to add
+   */
+  const addToCart = async (productId: string, quantity: number = 1) => {
+    if (!userId) return;
+
+    try {
+      await userRepository.addToCart(userId, productId, quantity);
+      const updatedCart = await userRepository.getCart(userId);
+      setCart(updatedCart);
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Failed to add item to cart",
+      );
+      throw err;
+    }
+  };
+
+  /**
+   * Update cart item quantity
+   * @param productId - Product ID to update
+   * @param quantity - New quantity
+   */
+  const updateCartQuantity = async (productId: string, quantity: number) => {
+    if (!userId) return;
+
+    try {
+      await userRepository.updateCartItemQuantity(userId, productId, quantity);
+      const updatedCart = await userRepository.getCart(userId);
+      setCart(updatedCart);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to update cart");
+      throw err;
+    }
+  };
+
+  /**
+   * Remove item from cart
+   * @param productId - Product ID to remove
+   */
+  const removeFromCart = async (productId: string) => {
+    if (!userId) return;
+
+    try {
+      await userRepository.removeFromCart(userId, productId);
+      const updatedCart = await userRepository.getCart(userId);
+      setCart(updatedCart);
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Failed to remove item from cart",
+      );
+      throw err;
+    }
+  };
+
+  /**
+   * Follow a designer
+   * @param designerId - Designer ID to follow
+   */
+  const followDesigner = async (designerId: string) => {
+    if (!userId) return;
+
+    try {
+      await userRepository.followDesigner(userId, designerId);
+      await fetchUser(); // Refresh user data
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Failed to follow designer",
+      );
+      throw err;
+    }
+  };
+
+  /**
+   * Unfollow a designer
+   * @param designerId - Designer ID to unfollow
+   */
+  const unfollowDesigner = async (designerId: string) => {
+    if (!userId) return;
+
+    try {
+      await userRepository.unfollowDesigner(userId, designerId);
+      await fetchUser(); // Refresh user data
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Failed to unfollow designer",
+      );
+      throw err;
+    }
+  };
+
+  // Load initial data
   useEffect(() => {
-    fetchProfile();
-  }, [fetchProfile]);
-
-  // Update profile handler
-  const updateProfile = useCallback(
-    async (data: UpdateProfileRequestDto): Promise<boolean> => {
-      if (!user?.id) return false;
-
-      try {
-        setIsLoading(true);
-
-        const response = await userService.updateProfile(user.id, data);
-        setProfile(response.profile);
-
-        toast({
-          title: "Profile Updated",
-          description: "Your profile has been updated successfully",
-        });
-
-        return true;
-      } catch (err) {
-        if (err instanceof ValidationError) {
-          toast({
-            title: "Validation Error",
-            description: "Please check your input",
-            variant: "destructive",
-          });
-        } else {
-          toast({
-            title: "Update Failed",
-            description: "Failed to update profile",
-            variant: "destructive",
-          });
-        }
-        setError(
-          err instanceof Error ? err : new Error("Failed to update profile"),
-        );
-        return false;
-      } finally {
-        setIsLoading(false);
-      }
-    },
-    [user?.id, userService],
-  );
-
-  // Profile picture upload handler
-  const uploadProfilePicture = useCallback(
-    async (file: File): Promise<boolean> => {
-      if (!user?.id) return false;
-
-      try {
-        setIsLoading(true);
-
-        // Validate file
-        if (!file.type.startsWith("image/")) {
-          throw new ValidationError("Invalid file type", {
-            file: ["Please upload an image file"],
-          });
-        }
-
-        const maxSize = 5 * 1024 * 1024; // 5MB
-        if (file.size > maxSize) {
-          throw new ValidationError("File too large", {
-            file: ["Image must be less than 5MB"],
-          });
-        }
-
-        const response = await userService.uploadProfilePicture(user.id, file);
-        setProfile((prev) =>
-          prev ? { ...prev, picture: response.picture } : null,
-        );
-
-        toast({
-          title: "Picture Updated",
-          description: "Your profile picture has been updated",
-        });
-
-        return true;
-      } catch (err) {
-        if (err instanceof ValidationError) {
-          toast({
-            title: "Invalid File",
-            description: err.message,
-            variant: "destructive",
-          });
-        } else {
-          toast({
-            title: "Upload Failed",
-            description: "Failed to upload profile picture",
-            variant: "destructive",
-          });
-        }
-        setError(
-          err instanceof Error ? err : new Error("Failed to upload picture"),
-        );
-        return false;
-      } finally {
-        setIsLoading(false);
-      }
-    },
-    [user?.id, userService],
-  );
+    fetchUser();
+  }, [fetchUser, userId]);
 
   return {
-    profile,
-    isLoading,
+    // State
+    user,
+    cart,
+    loading,
     error,
+
+    // Methods
     updateProfile,
-    uploadProfilePicture,
-    refreshProfile: fetchProfile,
+    addAddress,
+    addToCart,
+    updateCartQuantity,
+    removeFromCart,
+    followDesigner,
+    unfollowDesigner,
+    refreshUser: fetchUser,
   };
 };

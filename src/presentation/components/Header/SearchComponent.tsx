@@ -1,107 +1,121 @@
-import React, { useState, useEffect } from "react";
+"use client";
+import React, { useState, useEffect, useMemo } from "react";
 import { IoSearchOutline } from "react-icons/io5";
-import { getAllProducts } from "@/helpers/api/productApis";
-import { useParams, useRouter } from "next/navigation";
-import { getProductsByCategory } from "@/helpers/api/productApis";
+import { useParams } from "next/navigation";
+import { GroupedProduct } from "@/domain/entities/finalProduct.entity";
+import { useFinalProducts } from "@/application/hooks/finalProduct/useFinalProduct";
 
-interface BaseProduct {
-	id: number;
-	name: string;
-}
-
-interface Product extends BaseProduct {
-	[key: string]: any; //allowin additional properties on product
-}
-
+/**
+ * Search Component
+ * Provides search functionality for products with category filtering
+ */
 const SearchComponent = () => {
-	const router = useRouter();
-	const { category } = useParams<{ category?: string }>();
-	const [searchQuery, setSearchQuery] = useState<string>("");
-	const [allProducts, setAllProducts] = useState<Product[]>([]);
-	const [searchResults, setSearchResults] = useState<Product[]>([]);
-	const [isLoading, setIsLoading] = useState<boolean>(false);
+  const { category } = useParams<{ category?: string }>();
+  const [searchQuery, setSearchQuery] = useState<string>("");
 
-	const fetchProducts = async () => {
-		try {
-			setIsLoading(true);
-			const response = await getAllProducts();
-			setAllProducts(response.products);
-			setSearchResults(response.products); // Set initial search results to all products
-		} catch (error) {
-			console.error("Error fetching data:", error);
-		} finally {
-			setIsLoading(false);
-		}
-	};
+  // Use the final products hook with category param if available
+  const {
+    products,
+    loading: isLoading,
+    error,
+    fetchProducts,
+  } = useFinalProducts({
+    initialParams: category ? { category: category as string } : {},
+    shouldFetchOnMount: true,
+  });
 
-	const fetchProductsByCategory = async (category: string) => {
-		try {
-			setIsLoading(true);
-			const response = await getProductsByCategory({ category });
-			setAllProducts(response.products);
-			setSearchResults(response.products); // Set initial search results to all products
-		} catch (error) {
-			console.error("Error fetching data:", error);
-		} finally {
-			setIsLoading(false);
-		}
-	};
+  // Memoized filtered results based on search query
+  const searchResults = useMemo(() => {
+    if (!searchQuery) return [];
+    return products.filter((product) =>
+      product.productName.toLowerCase().includes(searchQuery.toLowerCase()),
+    );
+  }, [products, searchQuery]);
 
-	useEffect(() => {
-		if (!category) {
-			fetchProducts();
-		} else {
-			fetchProductsByCategory(category as string);
-		}
-	}, [category]);
+  // Handle input change
+  const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchQuery(event.target.value);
+  };
 
-	// Empty dependency array to run only once on component mount
+  // Handle category change
+  useEffect(() => {
+    if (category) {
+      fetchProducts({ category: category as string });
+    } else {
+      fetchProducts({});
+    }
+  }, [category, fetchProducts]);
 
-	const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-		if (!category) {
-			fetchProducts();
-		} else {
-			getProductsByCategory({ category });
-		}
+  return (
+    <div className="relative overflow-hidden w-full lg:px-10 mx-auto">
+      {/* Search Input */}
+      <div className="border-2 border-black flex justify-between h-[2.3em] px-3 py-1 rounded-full pl-5">
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={handleChange}
+          placeholder="Search Products..."
+          className="outline-none w-full bg-background"
+          disabled={isLoading}
+        />
+        <button disabled={isLoading}>
+          {isLoading ? (
+            <span className="text-2xl opacity-50">
+              <IoSearchOutline />
+            </span>
+          ) : (
+            <span className="text-2xl hover:animate-ping">
+              <IoSearchOutline />
+            </span>
+          )}
+        </button>
+      </div>
 
-		setSearchQuery(event.target.value);
-		// Filter products based on searchQuery
-		const filteredProducts = allProducts.filter((product) =>
-			product.name.toLowerCase().includes(event.target.value.toLowerCase())
-		);
-		setSearchResults(filteredProducts);
-	};
+      {/* Search Results Dropdown */}
+      {searchQuery && (
+        <div className="absolute bg-white w-full rounded-md border border-gray-300 shadow-md mt-3 -left-[5.5em] max-h-96 overflow-y-auto">
+          {error ? (
+            <div className="p-4 text-red-500">Error: {error}</div>
+          ) : searchResults.length === 0 ? (
+            <div className="p-4 text-gray-500">No products found</div>
+          ) : (
+            searchResults.map((result) => (
+              <SearchResultItem key={result.productId} product={result} />
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
 
-	return (
-		<div className="relative overflow-hidden  w-full lg:px-10 mx-auto">
-			<div className="border-2 border-black flex  justify-between  h-[2.3em]  px-3 py-1 rounded-full pl-5 ">
-				<input
-					type="text"
-					value={searchQuery}
-					onChange={handleChange}
-					placeholder="Search Products..."
-					className="outline-none w-full bg-background"
-				/>
-				<button disabled={isLoading}>
-					{
-						<span className="text-2xl hover:animate-ping">
-							<IoSearchOutline />
-						</span>
-					}
-				</button>
+/**
+ * Search Result Item Component
+ * Displays individual search result with product details
+ */
+const SearchResultItem = ({ product }: { product: GroupedProduct }) => {
+  return (
+    <div className="p-3 hover:bg-gray-50 cursor-pointer flex items-center gap-3 border-b">
+      {/* Product Image */}
+      <div className="w-12 h-12 rounded-md overflow-hidden">
+        <img
+          src={product.mainImageUrl}
+          alt={product.productName}
+          className="w-full h-full object-cover"
+        />
+      </div>
 
-				{/* Display search results */}
-			</div>
-
-			{searchQuery && (
-				<div className="absolute bg-white w-full rounded-md border border-gray-300 shadow-md mt-3  -left-[5.5em]">
-					{searchResults.map((result, index) => (
-						<div key={index}>{result.name}</div>
-					))}
-				</div>
-			)}
-		</div>
-	);
+      {/* Product Details */}
+      <div className="flex flex-col">
+        <h3 className="font-medium">{product.productName}</h3>
+        <div className="flex gap-2 text-sm text-gray-500">
+          <span>{product.category}</span>
+          <span>•</span>
+          <span>${product.price}</span>
+        </div>
+      </div>
+    </div>
+  );
 };
 
 export default SearchComponent;

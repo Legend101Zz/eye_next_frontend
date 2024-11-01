@@ -1,306 +1,413 @@
-/**
- * Designer Hook
- * @module application/hooks/designer/useDesigner
- *
- * @description
- * Primary hook for managing designer data and operations.
- * Handles designer profile, portfolio, and basic analytics.
- *
- * Dependencies:
- * - DesignerDto, DesignerProfileDto from application layer
- * - IDesignerService from domain layer
- * - Designer entity from domain layer
- */
+import { useCallback, useEffect, useState } from "react";
+import { DesignerRepository } from "@/infrastructure/api/repositories/designerRepository";
+import { ApiClient } from "@/infrastructure/api/client";
+import { CacheService } from "@/infrastructure/cache/cacheService";
+import { Designer, DesignerSettings } from "@/domain/entities/designer.entity";
+import { Redis } from "ioredis";
 
-import { useState, useCallback, useEffect } from "react";
-import { IDesignerService } from "@/domain/ports/services/IDesignerService";
-import {
-  DesignerProfileDto,
-  DesignerSettingsDto,
-  DesignerStatsDto,
-  UpdateDesignerProfileRequestDto,
-} from "@/application/dtos/designer";
-import { Designer, VerificationLevel } from "@/domain/entities/designer.entity";
-import { ValidationError, NotFoundError } from "@/domain/common/errors";
-import { toast } from "@/components/ui/use-toast";
-import { useAuth } from "../auth/useAuth";
+// Initialize Redis client
+const redis = new Redis(process.env.REDIS_URL || "redis://localhost:6379");
 
-export interface UseDesignerReturn {
-  /** Designer profile data */
-  designer: DesignerProfileDto | null;
-  /** Designer statistics */
-  stats: DesignerStatsDto | null;
-  /** Loading state */
-  isLoading: boolean;
-  /** Error state */
-  error: Error | null;
-  /** Update profile */
-  updateProfile: (data: UpdateDesignerProfileRequestDto) => Promise<boolean>;
-  /** Update settings */
-  updateSettings: (settings: Partial<DesignerSettingsDto>) => Promise<boolean>;
-  /** Upload portfolio */
-  uploadPortfolio: (files: File[]) => Promise<boolean>;
-  /** Get portfolio */
-  getPortfolio: () => Promise<string[]>;
-  /** Get verification status */
-  getVerificationStatus: () => Promise<VerificationLevel>;
-  /** Refresh designer data */
-  refreshDesigner: () => Promise<void>;
+// Initialize services
+const cacheService = new CacheService({
+  provider: "redis",
+  redisUrl: process.env.REDIS_URL,
+  maxSize: 1000,
+});
+
+const apiClient = new ApiClient({
+  baseURL: process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080",
+  cacheService,
+});
+
+const designerRepository = new DesignerRepository(apiClient, cacheService);
+
+interface UseDesignerParams {
+  designerId?: string;
+  shouldFetchOnMount?: boolean;
+}
+
+interface DesignerProfileData {
+  fullname: string;
+  artistName: string;
+  description?: string;
+  [key: string]: any;
+}
+
+interface CreateDesignData {
+  title?: string;
+  description?: string;
+  productId?: string;
 }
 
 /**
- * Hook for managing designer data
+ * Custom hook for managing designer data and operations
+ * Provides comprehensive designer profile management with caching
  *
- * @param designerService - Instance of IDesignerService
- * @param designerId - ID of the designer to manage
- * @returns Designer management functionality and state
+ * @param params - Configuration parameters for the hook
+ * @returns Object containing designer state and methods
  *
  * @example
  * ```tsx
- * const DesignerProfile = ({ designerId }) => {
- *   const {
- *     designer,
- *     stats,
- *     updateProfile,
- *     isLoading
- *   } = useDesigner(designerService, designerId);
- *
- *   if (isLoading) return <Spinner />;
- *
- *   return (
- *     <div>
- *       <h1>{designer?.artistName}</h1>
- *       <DesignerStats stats={stats} />
- *       <ProfileEditor
- *         designer={designer}
- *         onSave={updateProfile}
- *       />
- *     </div>
- *   );
- * };
+ * const {
+ *   designer,
+ *   designs,
+ *   settings,
+ *   loading,
+ *   error,
+ *   updateProfile,
+ *   createDesign
+ * } = useDesigner({
+ *   designerId: 'designer123',
+ *   shouldFetchOnMount: true
+ * });
  * ```
  */
-export const useDesigner = (
-  designerService: IDesignerService,
-  designerId: string,
-): UseDesignerReturn => {
-  const { user } = useAuth();
-  const [designer, setDesigner] = useState<DesignerProfileDto | null>(null);
-  const [stats, setStats] = useState<DesignerStatsDto | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
+export const useDesigner = ({
+  designerId,
+  shouldFetchOnMount = true,
+}: UseDesignerParams = {}) => {
+  // State
+  const [designer, setDesigner] = useState<Designer | null>(null);
+  const [publicProfile, setPublicProfile] = useState<any>(null);
+  const [designs, setDesigns] = useState<any[]>([]);
+  const [settings, setSettings] = useState<DesignerSettings | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Fetch designer data
-  const fetchDesigner = useCallback(async () => {
+  /**
+   * Request designer status for a user
+   */
+  const requestDesigner = async (
+    userId: string,
+    data: DesignerProfileData,
+    files: File[],
+  ) => {
     try {
-      setIsLoading(true);
-
-      // Fetch basic profile
-      const profileResponse = await designerService.getProfile(designerId);
-      setDesigner(profileResponse);
-
-      // Fetch stats if authorized
-      if (user?.id === designerId || user?.isDesigner) {
-        const statsResponse = await designerService.getStats(designerId);
-        setStats(statsResponse);
-      }
-
-      setError(null);
+      setLoading(true);
+      const response = await designerRepository.requestDesigner(
+        userId,
+        data,
+        files,
+      );
+      setDesigner(response);
+      return response;
     } catch (err) {
-      if (err instanceof NotFoundError) {
-        setError(new Error("Designer not found"));
-        toast({
-          title: "Error",
-          description: "Designer profile not found",
-          variant: "destructive",
-        });
-      } else {
-        setError(
-          err instanceof Error
-            ? err
-            : new Error("Failed to load designer data"),
-        );
-        toast({
-          title: "Error",
-          description: "Could not load designer information",
-          variant: "destructive",
-        });
-      }
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Failed to request designer status",
+      );
+      throw err;
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
-  }, [designerId, designerService, user]);
+  };
 
-  // Initial load
-  useEffect(() => {
-    fetchDesigner();
-  }, [fetchDesigner]);
+  /**
+   * Update designer profile
+   */
+  const updateProfile = async (updates: Partial<DesignerProfileData>) => {
+    if (!designerId) return;
 
-  // Update profile handler
-  const updateProfile = useCallback(
-    async (data: UpdateDesignerProfileRequestDto): Promise<boolean> => {
-      if (!user?.id || user.id !== designerId) {
-        toast({
-          title: "Unauthorized",
-          description: "You cannot update this profile",
-          variant: "destructive",
-        });
-        return false;
-      }
-
-      try {
-        setIsLoading(true);
-        const response = await designerService.updateProfile(designerId, data);
-        setDesigner(response);
-
-        toast({
-          title: "Profile Updated",
-          description: "Your profile has been updated successfully",
-        });
-
-        return true;
-      } catch (err) {
-        if (err instanceof ValidationError) {
-          toast({
-            title: "Validation Error",
-            description: "Please check your input",
-            variant: "destructive",
-          });
-        } else {
-          toast({
-            title: "Update Failed",
-            description: "Failed to update profile",
-            variant: "destructive",
-          });
-        }
-        return false;
-      } finally {
-        setIsLoading(false);
-      }
-    },
-    [designerId, designerService, user],
-  );
-
-  // Update settings handler
-  const updateSettings = useCallback(
-    async (settings: Partial<DesignerSettingsDto>): Promise<boolean> => {
-      if (!user?.id || user.id !== designerId) return false;
-
-      try {
-        setIsLoading(true);
-        const response = await designerService.updateSettings(
-          designerId,
-          settings,
-        );
-        setDesigner((prev) =>
-          prev ? { ...prev, settings: response.settings } : null,
-        );
-
-        toast({
-          title: "Settings Updated",
-          description: "Your settings have been updated successfully",
-        });
-
-        return true;
-      } catch (err) {
-        toast({
-          title: "Update Failed",
-          description: "Failed to update settings",
-          variant: "destructive",
-        });
-        return false;
-      } finally {
-        setIsLoading(false);
-      }
-    },
-    [designerId, designerService, user],
-  );
-
-  // Portfolio upload handler
-  const uploadPortfolio = useCallback(
-    async (files: File[]): Promise<boolean> => {
-      if (!user?.id || user.id !== designerId) return false;
-
-      try {
-        setIsLoading(true);
-
-        // Validate files
-        const validFiles = files.filter((file) => {
-          const isValid = file.type.startsWith("image/");
-          if (!isValid) {
-            toast({
-              title: "Invalid File",
-              description: `${file.name} is not an image file`,
-              variant: "destructive",
-            });
-          }
-          return isValid;
-        });
-
-        if (validFiles.length === 0) return false;
-
-        await designerService.uploadPortfolio(designerId, validFiles);
-
-        toast({
-          title: "Portfolio Updated",
-          description: "Your portfolio has been updated successfully",
-        });
-
-        return true;
-      } catch (err) {
-        toast({
-          title: "Upload Failed",
-          description: "Failed to upload portfolio images",
-          variant: "destructive",
-        });
-        return false;
-      } finally {
-        setIsLoading(false);
-      }
-    },
-    [designerId, designerService, user],
-  );
-
-  // Get portfolio handler
-  const getPortfolio = useCallback(async (): Promise<string[]> => {
     try {
-      const portfolio = await designerService.getPortfolio(designerId);
-      return portfolio;
+      setLoading(true);
+      const updated = await designerRepository.updateDesignerProfile(
+        designerId,
+        updates,
+      );
+      setDesigner(updated);
+      return updated;
     } catch (err) {
-      toast({
-        title: "Error",
-        description: "Could not load portfolio",
-        variant: "destructive",
-      });
-      return [];
+      setError(err instanceof Error ? err.message : "Failed to update profile");
+      throw err;
+    } finally {
+      setLoading(false);
     }
-  }, [designerId, designerService]);
+  };
 
-  // Verification status handler
-  const getVerificationStatus =
-    useCallback(async (): Promise<VerificationLevel> => {
-      try {
-        return await designerService.getVerificationStatus(designerId);
-      } catch (err) {
-        toast({
-          title: "Error",
-          description: "Could not check verification status",
-          variant: "destructive",
-        });
-        return VerificationLevel.NONE;
-      }
-    }, [designerId, designerService]);
+  /**
+   * Upload profile photo
+   */
+  const uploadProfilePhoto = async (file: File) => {
+    if (!designerId) return;
+
+    try {
+      setLoading(true);
+      const updated = await designerRepository.addProfilePhoto(
+        designerId,
+        file,
+      );
+      setDesigner(updated);
+      return updated;
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Failed to upload profile photo",
+      );
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /**
+   * Upload PAN card
+   */
+  const uploadPanCard = async (file: File) => {
+    if (!designerId) return;
+
+    try {
+      setLoading(true);
+      const updated = await designerRepository.addPanCard(designerId, file);
+      setDesigner(updated);
+      return updated;
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Failed to upload PAN card",
+      );
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /**
+   * Fetch designer's public profile
+   */
+  const fetchPublicProfile = useCallback(async () => {
+    if (!designerId) return;
+
+    try {
+      setLoading(true);
+      const profile = await designerRepository.getPublicProfile(designerId);
+      setPublicProfile(profile);
+      return profile;
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Failed to fetch public profile",
+      );
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, [designerId]);
+
+  /**
+   * Fetch designer's personal profile
+   */
+  const fetchPersonalProfile = useCallback(async () => {
+    if (!designerId) return;
+
+    try {
+      setLoading(true);
+      const profile = await designerRepository.getPersonalProfile(designerId);
+      setDesigner(profile);
+      return profile;
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Failed to fetch personal profile",
+      );
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, [designerId]);
+
+  /**
+   * Fetch designer's designs
+   */
+  const fetchDesigns = useCallback(async () => {
+    if (!designerId) return;
+
+    try {
+      setLoading(true);
+      const designs = await designerRepository.getDesigns(designerId);
+      setDesigns(designs);
+      return designs;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to fetch designs");
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, [designerId]);
+
+  /**
+   * Create a new design
+   */
+  const createDesign = async (data: CreateDesignData, file: File) => {
+    if (!designerId) return;
+
+    try {
+      setLoading(true);
+      const design = await designerRepository.createDesign(
+        designerId,
+        data,
+        file,
+      );
+      setDesigns((prev) => [...prev, design]);
+      return design;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to create design");
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /**
+   * Fetch designer settings
+   */
+  const fetchSettings = useCallback(async () => {
+    if (!designerId) return;
+
+    try {
+      setLoading(true);
+      const settings = await designerRepository.getSettings(designerId);
+      setSettings(settings);
+      return settings;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to fetch settings");
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, [designerId]);
+
+  /**
+   * Update designer settings
+   */
+  const updateSettings = async (updates: Partial<DesignerSettings>) => {
+    if (!designerId) return;
+
+    try {
+      setLoading(true);
+      const updated = await designerRepository.updateSettings(
+        designerId,
+        updates,
+      );
+      setDesigner(updated);
+      setSettings((prev) => ({ ...prev, ...updates }));
+      return updated;
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Failed to update settings",
+      );
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /**
+   * Refresh all designer data
+   */
+  const refreshData = useCallback(async () => {
+    if (!designerId) return;
+
+    try {
+      setLoading(true);
+      await Promise.all([
+        fetchPersonalProfile(),
+        fetchPublicProfile(),
+        fetchDesigns(),
+        fetchSettings(),
+      ]);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to refresh data");
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, [
+    designerId,
+    fetchPersonalProfile,
+    fetchPublicProfile,
+    fetchDesigns,
+    fetchSettings,
+  ]);
+
+  // Initialize data on mount
+  useEffect(() => {
+    if (shouldFetchOnMount && designerId) {
+      refreshData();
+    }
+  }, [shouldFetchOnMount, designerId, refreshData]);
 
   return {
+    // State
     designer,
-    stats,
-    isLoading,
+    publicProfile,
+    designs,
+    settings,
+    loading,
     error,
+
+    // Profile Methods
+    requestDesigner,
     updateProfile,
+    uploadProfilePhoto,
+    uploadPanCard,
+
+    // Design Methods
+    createDesign,
+
+    // Settings Methods
     updateSettings,
-    uploadPortfolio,
-    getPortfolio,
-    getVerificationStatus,
-    refreshDesigner: fetchDesigner,
+
+    // Fetch Methods
+    fetchPublicProfile,
+    fetchPersonalProfile,
+    fetchDesigns,
+    fetchSettings,
+    refreshData,
+  };
+};
+
+/**
+ * Hook for managing random designers
+ *
+ * @returns Object containing random designers state and methods
+ *
+ * @example
+ * ```tsx
+ * const {
+ *   designers,
+ *   loading,
+ *   error,
+ *   refreshDesigners
+ * } = useRandomDesigners();
+ * ```
+ */
+export const useRandomDesigners = () => {
+  const [designers, setDesigners] = useState<any[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchRandomDesigners = useCallback(async () => {
+    try {
+      setLoading(true);
+      const response = await designerRepository.getRandomDesigners();
+      setDesigners(response);
+      return response;
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Failed to fetch random designers",
+      );
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchRandomDesigners();
+  }, [fetchRandomDesigners]);
+
+  return {
+    designers,
+    loading,
+    error,
+    refreshDesigners: fetchRandomDesigners,
   };
 };

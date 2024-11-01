@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { Button } from "../ui/button";
 import { useState } from "react";
-import { cn } from "@/lib/utils";
+import { cn } from "@/presentation/utils/tailwind-util";
 import { useDispatch } from "react-redux";
 import { toast } from "../ui/use-toast";
 import { addToCart } from "@/app/store/features/cart/cartSlice";
@@ -81,8 +81,7 @@ export const ProductDetails = ({
 							onClick={() => setColour(colour)}
 							key={index}
 							className={cn(
-								`size-10 rounded-full bg-${colour}-600 hover:cursor-pointer ${
-									selectedColour === colour ? "border-accent border-[1px]" : ""
+								`size-10 rounded-full bg-${colour}-600 hover:cursor-pointer ${selectedColour === colour ? "border-accent border-[1px]" : ""
 								}`
 							)}
 						></div>
@@ -102,8 +101,7 @@ export const ProductDetails = ({
 								}}
 								key={index}
 								className={cn(
-									`rounded-md  hover:cursor-pointer w-full text-center px-3 font-semibold py-2 text-white transition-all duration-150 ${
-										selectedSize === size ? "bg-accent" : "bg-black"
+									`rounded-md  hover:cursor-pointer w-full text-center px-3 font-semibold py-2 text-white transition-all duration-150 ${selectedSize === size ? "bg-accent" : "bg-black"
 									}`
 								)}
 							>

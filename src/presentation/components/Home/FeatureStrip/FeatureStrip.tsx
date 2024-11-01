@@ -1,7 +1,7 @@
 "use client";
 import React from "react";
 import { staticFeautreStripItems } from "./staticFeautreStripItems";
-import { InfiniteMovingCards } from "@/components/ui/infiniteMovingCards";
+import { InfiniteMovingCards } from "@/presentation/components/ui/infiniteMovingCards";
 
 const FeatureStrip = () => {
 	return (

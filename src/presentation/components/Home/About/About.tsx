@@ -1,4 +1,4 @@
-import { Button } from "@/components/ui/button";
+import { Button } from "@//presentation/components/ui/button";
 import { ArrowRightIcon } from "@radix-ui/react-icons";
 import Image from "next/image";
 import React from "react";

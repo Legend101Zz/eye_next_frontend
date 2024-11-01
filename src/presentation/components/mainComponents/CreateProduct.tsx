@@ -6,10 +6,10 @@ import {
 	DialogHeader,
 	DialogTitle,
 	DialogTrigger,
-} from "@/components/ui/dialog";
+} from "@/presentation/components/ui/dialog";
 
 import { MdOutlineProductionQuantityLimits } from "react-icons/md";
-import Editor from "../Editor/ImageEditorPage";
+// import EditorEngine from "@/presentation/features/Editor/EditorEngine";
 
 export default function CreateProduct() {
 	// body content
@@ -69,7 +69,7 @@ export default function CreateProduct() {
 						<DialogTitle>Edit Your Profile</DialogTitle>
 						<DialogDescription className="max-w-full"></DialogDescription>
 					</DialogHeader>
-					<Editor />
+					{/* <EditorEngine /> */}
 				</DialogContent>
 			</Dialog>
 		</>

@@ -1,10 +1,10 @@
 "use client";
 import Image from "next/image";
 import React, { useState } from "react";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Skeleton } from "@/presentation/components/ui/skeleton";
 import { ProductSideviewSheet } from "./ProductSideviewSheet";
 import Link from "next/link";
-import { ProductCardProps } from "@/types/types";
+
 
 interface ColorVariant {
   color: string;
@@ -107,9 +107,8 @@ const ProductCard = ({
           {colorVariants.map((variant, index) => (
             <div
               key={variant.color}
-              className={`rounded-full w-5 h-5 mr-2 hover:scale-105 focus:scale-95 cursor-pointer ring-1 ${
-                index === selectedColorIndex ? "ring-2 ring-white" : ""
-              }`}
+              className={`rounded-full w-5 h-5 mr-2 hover:scale-105 focus:scale-95 cursor-pointer ring-1 ${index === selectedColorIndex ? "ring-2 ring-white" : ""
+                }`}
               style={{ backgroundColor: variant.color }}
               onClick={() => handleColour(index)}
             ></div>

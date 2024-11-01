@@ -1,14 +1,14 @@
 import Image from "next/image";
-import HeroBanner from "@/components/Home/HeroBanner";
-import Wrapper from "@/components/Wrapper";
-import Designers from "@/components/Home/ExploreDesigner/Designers";
-import CategorySection from "@/components/Home/CategorySection/CategorySection";
-import ExploreSection from "@/components/Home/ExploreProducts/ExploreProducts";
-import BestSellingSection from "@/components/Home/BestSeller/BestSellingSection";
-import ExploreDesigns from "@/components/Home/ExploreDesigns/ExploreDesigns";
-import FeatureStrip from "@/components/Home/FeatureStrip/FeatureStrip";
-import About from "@/components/Home/About/About";
-import PersonalizedPicks from "@/components/Home/PersonalizedPicks/PersonalizedPicks";
+import HeroBanner from "@/presentation/components/Home/HeroBanner";
+import Wrapper from "@/presentation/components/Wrapper";
+import Designers from "@/presentation/components/Home/ExploreDesigner/Designers";
+import CategorySection from "@/presentation/components/Home/CategorySection/CategorySection";
+import ExploreSection from "@/presentation/components/Home/ExploreProducts/ExploreProducts";
+import BestSellingSection from "@/presentation/components/Home/BestSeller/BestSellingSection";
+import ExploreDesigns from "@/presentation/components/Home/ExploreDesigns/ExploreDesigns";
+import FeatureStrip from "@/presentation/components/Home/FeatureStrip/FeatureStrip";
+import About from "@/presentation/components/Home/About/About";
+import PersonalizedPicks from "@/presentation/components/Home/PersonalizedPicks/PersonalizedPicks";
 
 export default function Home() {
   return (

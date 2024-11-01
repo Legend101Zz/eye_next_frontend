@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import CategoryCard from "@/components/Home/CategorySection/CategoryCardNew";
+import CategoryCard from "@/presentation/components/Home/CategorySection/CategoryCardNew";
 
 interface Category {
   title: string;

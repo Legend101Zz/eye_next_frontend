@@ -1,12 +1,12 @@
 "use client";
 import React, { useState } from "react";
 import { useForm, SubmitHandler } from "react-hook-form";
-import { Label } from "../ui/label";
-import { Input } from "../ui/input";
-import { Textarea } from "../ui/textarea";
+import { Label } from "@/presentation/components/ui/label";
+import { Input } from "@/presentation/components/ui/input";
+import { Textarea } from "@/presentation/components/ui/textarea";
 import { Button } from "@nextui-org/react";
 import { handleDesignerSignup } from "@/helpers/api/auth";
-import { toast } from "../ui/use-toast";
+import { toast } from "@/presentation/components/ui/use-toast";
 import Image from "next/image";
 
 type Props = {};
@@ -181,7 +181,7 @@ const DesignerSignupForm = (props: Props) => {
 								className="rounded-full w-3/4 file:du-btn file:du-btn-secondary file:bg-accent file:min-h-0 file:h-full file:rounded-full file:py-0 p-0"
 								type="file"
 								{...(register("profilePhoto"),
-								{ onChange: handleProfilePhotoChange })}
+									{ onChange: handleProfilePhotoChange })}
 							/>
 							{errors.profilePhoto && (
 								<span className="text-warning">
@@ -214,7 +214,7 @@ const DesignerSignupForm = (props: Props) => {
 								className="rounded-full w-3/4 file:du-btn file:du-btn-secondary file:bg-accent file:min-h-0 file:h-full file:rounded-full file:py-0 p-0"
 								type="file"
 								{...(register("coverPhoto"),
-								{ onChange: handleCoverPhotoChange })}
+									{ onChange: handleCoverPhotoChange })}
 								placeholder=""
 							/>
 							{errors.coverPhoto && (

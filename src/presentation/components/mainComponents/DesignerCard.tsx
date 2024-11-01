@@ -1,79 +1,117 @@
-import { DesignerCardProps } from "@/types/types";
-import Image from "next/image";
-import { followDesigner } from "@/helpers/api/designerApi";
-import { useAuth } from "@/hooks/useAuth";
-import { useRouter } from "next/navigation";
-
+import React from "react";
 import { Button } from "../ui/button";
-import { ToastContainer, toast } from "react-toastify";
+import { useAuth } from "@/application/hooks/auth/useAuth";
+import { useDesigner } from "@/application/hooks/designer/useDesigner";
 
-export default function DesignerCard(props: DesignerCardProps) {
-  const { user, loading } = useAuth();
-  const router = useRouter();
+interface DesignerCardProps {
+  totalDesigns: number;
+  designerFollowers: number;
+  designImageUrl: string;
+  designName: string;
+  designerId: string;
+  designerName: string;
+  profileImageUrl: string;
+}
 
-  const handleFollow = async (designerId: any) => {
-    if (loading) return; // Don't do anything while loading
+const DesignerCard: React.FC<DesignerCardProps> = ({
+  totalDesigns,
+  designerFollowers,
+  designImageUrl,
+  designName,
+  designerId,
+  designerName,
+  profileImageUrl,
+}) => {
+  // Get the designer hook functionality for this specific designer
+  const {
+    designer,
+    loading: followLoading,
+    error: followError,
 
-    if (!user) {
-      // Redirect to login if user is not authenticated
-      router.push("/auth/login");
-      return;
-    }
+  } = useDesigner({ designerId });
 
+  // Get current user context
+  const { user } = useAuth();
+
+  // Check if the current user is following this designer
+  const isFollowing = user && designer?.followers?.includes(user.id);
+
+  // Handle follow/unfollow action
+  const handleFollowAction = async () => {
     try {
-      const result = await followDesigner(user.id, designerId);
-      console.log("Follow result:", result);
-      // Show a toast notifications
-      toast.success("You follow this designer now!");
+      if (!user) {
+        // Redirect to login or show login modal
+        return;
+      }
+
+      if (isFollowing) {
+        await unfollowDesigner(designerId);
+      } else {
+        await followDesigner(designerId);
+      }
     } catch (error) {
-      toast.error("Error following designer");
+      console.error("Failed to update follow status:", error);
     }
   };
+
   return (
-    <div className="  h-[22em] w-[15em] flex flex-col gap-5">
-      <div className=" rounded-t-lg h-[10em] w-[15em] relative mb-5">
-        <div className="w-full overflow-hidden">
-          <Image
-            alt="design"
-            src={props.designImageUrl}
-            fill
-            style={{ objectFit: "fill" }}
-            className="rounded-t-lg"
+    <div className="h-[22em] w-[15em] flex flex-col gap-5 group">
+      {/* Design Image */}
+      <div className="rounded-t-lg h-[10em] w-[15em] relative mb-5 overflow-hidden">
+        <img
+          src={designImageUrl || "/placeholder-design.png"}
+          alt={designName}
+          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+        />
+        {/* Profile Picture Overlay */}
+        <div className="overflow-hidden rounded-full w-16 h-16 absolute top-[70%] right-[35%] border-2 border-white">
+          <img
+            src={profileImageUrl || "/placeholder-profile.png"}
+            alt={designerName}
+            className="w-full h-full object-cover"
           />
-        </div>
-        <div className="overflow-hidden rounded-full w-16 h-16 absolute top-[70%] right-[35%] ">
-          <Image
-            alt="design"
-            src={props.profileImageUrl}
-            fill
-            style={{ objectFit: "fill" }}
-          />
-        </div>
-      </div>
-      <div className=" max-h-full w-full flex flex-col gap-2 text-black">
-        <div className="text-center text-xl font-heading1">
-          {props.designerName}
-        </div>
-        <div className="flex flex-row gap-2 w-fit mx-auto text-black text-sm tracking-tight  px-3">
-          <div className="text-center">
-            {props.designerFollowers + " followers"}
-          </div>
-          <div className="text-center">{props.totalDesigns + " designs"}</div>
-        </div>
-        <div className="w-fit mx-auto">
-          <Button
-            className="bg-transparent rounded-full border-muted hover:bg-accent hover:text-black hover:border-0 transition-all duration-75 border-2"
-            onClick={() => {
-              handleFollow(props.designerId);
-            }}
-            disabled={loading}
-          >
-            follow
-          </Button>
         </div>
       </div>
 
-      <ToastContainer position="bottom-center" />
+      {/* Designer Info */}
+      <div className="max-h-full w-full flex flex-col gap-3">
+        <h3 className="text-center text-xl font-heading1">{designerName}</h3>
+        <div className="flex justify-center gap-4 text-sm text-gray-600">
+          <span>{totalDesigns} designs</span>
+          <span>{designerFollowers} followers</span>
+        </div>
+      </div>
+
+      {/* Follow Button */}
+      <div className="w-fit mx-auto">
+        <Button
+          onClick={handleFollowAction}
+          disabled={followLoading}
+          className={`
+            rounded-full transition-all duration-200
+            ${isFollowing
+              ? 'bg-gray-200 text-gray-800 hover:bg-gray-300'
+              : 'bg-accent text-white hover:bg-accent-dark'
+            }
+          `}
+        >
+          {followLoading
+            ? 'Loading...'
+            : isFollowing
+              ? 'Following'
+              : 'Follow'
+          }
+        </Button>
+      </div>
+
+      {/* Error Message */}
+      {followError && (
+        <p className="text-red-500 text-xs text-center">
+          {followError}
+        </p>
+      )}
     </div>
   );
-}
+};
+
+export default DesignerCard;

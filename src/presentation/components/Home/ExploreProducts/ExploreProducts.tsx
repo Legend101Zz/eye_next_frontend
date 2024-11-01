@@ -1,10 +1,10 @@
 "use client";
 import React, { useEffect, useState } from "react";
-import { getLatestProducts } from "@/helpers/api/productApis";
+import { useFinalProducts } from "@/application/hooks/finalProduct/useFinalProduct";
 import {
   ProductCard,
   LoadingCard,
-} from "@/components/mainComponents/ProductCard";
+} from "@/presentation/components/mainComponents/ProductCard";
 
 interface ColorVariant {
   color: string;
@@ -30,23 +30,27 @@ interface ProductType {
 }
 
 const ExploreSection = () => {
-  const [productData, setProductData] = useState<ProductType[]>([]);
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchAllProducts = async () => {
-      try {
-        const data = await getLatestProducts();
-        setProductData(data.products);
-        setLoading(false);
-        console.log(data.products);
-      } catch (error) {
-        console.error("Error fetching products:", error);
-        setLoading(false);
-      }
-    };
-    fetchAllProducts();
-  }, []);
+  // Use the custom hook with specific parameters for latest products
+  const {
+    products: productData,
+    loading,
+    error,
+    fetchLatestProducts,
+  } = useFinalProducts({
+    shouldFetchOnMount: true,
+  });
+
+  // Handle error state
+  if (error) {
+    return (
+      <div className="text-red-500 text-center p-4">
+        Failed to load products: {error}
+      </div>
+    );
+  }
+
+
 
   return (
     <div className="md:px-5">
@@ -56,20 +60,20 @@ const ExploreSection = () => {
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 md:gap-5 gap-2 my-6 mx-2">
         {loading
           ? // Show loading placeholders
-            Array(5)
-              .fill(0)
-              .map((_, index) => <LoadingCard key={index} />)
+          Array(5)
+            .fill(0)
+            .map((_, index) => <LoadingCard key={index} />)
           : // Show actual product data
-            productData.map((product, index) => (
-              <ProductCard
-                key={`${product.productName}-${index}`}
-                category={product.category}
-                colorVariants={product.colors}
-                productName={product.productName}
-                baseProductName={product.baseProductName}
-                designs={product.designs}
-              />
-            ))}
+          productData.map((product, index) => (
+            <ProductCard
+              key={`${product.productName}-${index}`}
+              category={product.category}
+              colorVariants={product.colors}
+              productName={product.productName}
+              baseProductName={product.baseProductName}
+              designs={product.designs}
+            />
+          ))}
       </div>
     </div>
   );

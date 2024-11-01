@@ -1,8 +1,16 @@
-import { Button } from "@/components/ui/button";
+import { Button } from "@/presentation/components/ui/button";
 import Image from "next/image";
 import React from "react";
 import { Skeleton } from "../ui/skeleton";
-import { DesignCardProps } from "@/types/types";
+
+
+interface DesignCardProps {
+  _id: string;
+  designImageUrl: string;
+  designName: string;
+  designerId: string;
+  likesCount: number;
+}
 
 const DesignCard = (props: DesignCardProps) => {
   return (
@@ -30,7 +38,7 @@ const DesignCard = (props: DesignCardProps) => {
             {props.designName}
           </div>
           <div className="text-sm md:text-md text-muted-foreground">
-            {props.designerName}
+            {props.likesCount}
           </div>
         </div>
       </div>

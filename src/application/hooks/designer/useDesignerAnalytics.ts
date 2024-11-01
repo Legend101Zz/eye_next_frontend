@@ -1,3 +1,5 @@
+/// Will need to implement it once we set the payment gate way
+
 /**
  * Designer Analytics Hook
  * @module application/hooks/designer/useDesignerAnalytics

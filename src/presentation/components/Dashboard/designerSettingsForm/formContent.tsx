@@ -1,227 +1,243 @@
 "use client";
-import React, { useEffect, useState } from "react";
-import { useForm, SubmitHandler } from "react-hook-form";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
+import React from "react";
+import { useForm } from "react-hook-form";
+import { Label } from "@/presentation/components/ui/label";
+import { Input } from "@/presentation/components/ui/input";
+import { Button } from "@/presentation/components/ui/button";
 import SelectProductModal from "./SelectProductModal";
-import { getPublicSettings } from "@/helpers/api/designerApi";
-import { DashboardSettings } from "@/types/types";
+import { DesignerSettings } from "@/domain/entities/designer.entity";
+import { useDesigner } from "@/application/hooks/designer/useDesigner";
 
-const FormContent = ({
-	onSubmit,
-	designerId,
-}: {
-	onSubmit: (event: any) => void;
-	designerId: string;
-}) => {
-	const {
-		register,
-		formState: { errors, touchedFields },
-		handleSubmit,
-		watch,
-	} = useForm();
 
-	const staticSettings: DashboardSettings = {
-		isPrivate: false,
-		showDesigns: true,
-		designIds: [],
-		showFollowers: true,
-		showFullName: true,
-		showPhone: true,
-		showDescription: true,
-		showCoverPhoto: true,
-		showProfilePhoto: true,
-		socialMediaLink1: "",
-		socialMediaLink2: "",
-		portfolioLink1: "",
-		portfolioLink2: "",
-	};
+interface FormContentProps {
+  designerId: string;
+  onSubmit?: (data: DesignerSettings) => void;
+}
 
-	const [newSettings, setNewSettings] =
-		useState<DashboardSettings>(staticSettings);
+/**
+ * Form Content Component for Designer Settings
+ * Uses useDesigner hook for settings management
+ */
+const FormContent: React.FC<FormContentProps> = ({ designerId, onSubmit }) => {
+  const {
+    settings,
+    loading,
+    error,
+    updateSettings,
+  } = useDesigner({
+    designerId,
+    shouldFetchOnMount: true,
+  });
 
-	const [loading, setLoading] = useState<boolean>(true);
+  const {
+    register,
+    handleSubmit,
+    watch,
+    formState: { errors }
+  } = useForm<Partial<DesignerSettings>>({
+    defaultValues: settings || {
+      isPrivate: false,
+      showDesigns: true,
+      designIds: [],
+      showFollowers: true,
+      showFullName: true,
+      showPhone: true,
+      showDescription: true,
+      showCoverPhoto: true,
+      showProfilePhoto: true,
+      socialMediaLink1: "",
+      socialMediaLink2: "",
+      portfolioLink1: "",
+      portfolioLink2: "",
+    }
+  });
 
-	useEffect(() => {
-		const fetchData = async () => {
-			try {
-				let data;
-				if (designerId) {
-					data = await getPublicSettings(designerId);
-					if (data) setNewSettings(data);
-					setLoading(false);
-					console.log("settings data:", data);
-				}
-			} catch (error) {
-				console.error("Error fetching designer Data, please check Id:", error);
-			} finally {
-				setLoading(false);
-			}
-		};
+  /**
+   * Handle form submission
+   */
+  const handleFormSubmit = async (data: DesignerSettings) => {
+    try {
+      await updateSettings(data);
+      onSubmit?.(data);
+    } catch (err) {
+      console.error("Failed to update settings:", err);
+    }
+  };
 
-		fetchData();
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center p-6">
+        <div className="w-6 h-6 border-2 border-accent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
-		console.log(newSettings);
-	}, []);
-	// const settings = usePublicSettings();
+  if (error) {
+    return (
+      <div className="text-red-500 text-center p-4">
+        Failed to load settings: {error}
+      </div>
+    );
+  }
 
-	onSubmit = (data) => {
-		console.log("settings are:", data);
-	};
+  return (
+    <div className="">
+      <form onSubmit={handleSubmit(handleFormSubmit)}>
+        {/* Portfolio Links Section */}
+        <div className="grid gap-4 py-4 text-center">
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="portfolioLink1" className="text-right">
+              Portfolio Link 1
+            </Label>
+            <Input
+              id="portfolioLink1"
+              {...register("portfolioLink1")}
+              className="col-span-3 text-white"
+            />
+          </div>
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="portfolioLink2" className="text-right">
+              Portfolio Link 2
+            </Label>
+            <Input
+              id="portfolioLink2"
+              {...register("portfolioLink2")}
+              className="col-span-3 text-white"
+            />
+          </div>
 
-	return (
-		<div className="">
-			<form onSubmit={handleSubmit(onSubmit)}>
-				<div className="grid gap-4 py-4 text-center">
-					<div className="grid grid-cols-4 items-center gap-4">
-						<Label htmlFor="name" className="text-right">
-							portfolio link 1
-						</Label>
-						<Input
-							id="portfolioLink1"
-							{...register("portfolioLink1", { required: false })}
-							className="col-span-3 text-white"
-							defaultValue={newSettings.portfolioLink1}
-						/>
-					</div>
-					<div className="grid grid-cols-4 items-center gap-4">
-						<Label htmlFor="name" className="text-right">
-							portfolio link 2
-						</Label>
-						<Input
-							id="name"
-							{...register("portfolioLink2", { required: false })}
-							className="col-span-3 text-white"
-							defaultValue={newSettings.portfolioLink2}
-						/>
-					</div>
+          <hr />
 
-					<hr></hr>
-					<div className="grid grid-cols-4 items-center gap-4">
-						<Label htmlFor="name" className="text-right">
-							social media link 1
-						</Label>
-						<Input
-							id="socialMediaLink1"
-							{...register("socialMediaLink1", { required: false })}
-							className="col-span-3 text-white"
-							defaultValue={newSettings.socialMediaLink1}
-						/>
-					</div>
-					<div className="grid grid-cols-4 items-center gap-4">
-						<Label htmlFor="name" className="text-right">
-							social media link 2
-						</Label>
-						<Input
-							id="socialMediaLink2"
-							{...register("socialMediaLink2", { required: false })}
-							className="col-span-3 text-white"
-							defaultValue={newSettings.socialMediaLink2}
-						/>
-					</div>
-					<hr />
-					<div className="grid grid-cols-4 items-center gap-4">
-						<Label htmlFor="name" className="text-right col-span-2">
-							display picture
-						</Label>
-						<Input
-							type="checkbox"
-							id="showProfilePhoto"
-							{...register("showProfilePhoto", { required: false })}
-							defaultChecked={newSettings.showProfilePhoto}
-							className="col-span-2 mx-auto w-5 text-black "
-						/>
-					</div>
-					<div className="grid grid-cols-4 items-center gap-4">
-						<Label htmlFor="name" className="text-right col-span-2">
-							description
-						</Label>
-						<Input
-							type="checkbox"
-							id="description"
-							{...register("showDescription", { required: false })}
-							defaultChecked={newSettings.showDescription}
-							className="col-span-2 mx-auto w-5 text-black"
-						/>
-					</div>
-					<div className="grid grid-cols-4 items-center gap-4">
-						<Label htmlFor="name" className="text-right col-span-2">
-							Name
-						</Label>
-						<Input
-							type="checkbox"
-							id="name"
-							{...register("showFullName", { required: false })}
-							defaultChecked={newSettings.showFullName}
-							className="col-span-2 mx-auto w-5 text-black "
-						/>
-					</div>
-					<div className="grid grid-cols-4 items-center gap-4">
-						<Label htmlFor="name" className="text-right col-span-2">
-							private profile
-						</Label>
-						<Input
-							type="checkbox"
-							id="visibility"
-							{...register("isPrivate", { required: false })}
-							defaultChecked={newSettings.isPrivate}
-							className="col-span-2 mx-auto w-5 text-black"
-						/>
-					</div>
-					<div className="grid grid-cols-4 items-center gap-4">
-						<Label htmlFor="showPhone" className="text-right col-span-2">
-							show contact number
-						</Label>
-						<Input
-							type="checkbox"
-							id="showPhone"
-							{...register("showPhone", { required: false })}
-							defaultChecked={newSettings.showPhone}
-							className="col-span-2 mx-auto w-5 text-black"
-						/>
-					</div>
-					<div className="grid grid-cols-4 items-center gap-4">
-						<Label htmlFor="showFollowers" className="text-right col-span-2">
-							show followers
-						</Label>
-						<Input
-							type="checkbox"
-							id="showFollowers"
-							{...register("showFollowers", { required: false })}
-							defaultChecked={newSettings.showFollowers}
-							className="col-span-2 mx-auto w-5 text-black "
-						/>
-					</div>
-					<hr />
-					<div className="grid grid-cols-4 items-center gap-4">
-						<Label htmlFor="showDesigns" className="text-right col-span-2">
-							show featured designs
-						</Label>
-						<Input
-							type="checkbox"
-							id="showDesigns"
-							{...register("showDesigns", { required: false })}
-							defaultChecked={newSettings.showDesigns}
-							className="col-span-2 mx-auto w-5 text-black "
-						/>
-					</div>
-					<hr />
-					{watch("showDesigns") ? (
-						<div>
-							<SelectProductModal designerId={designerId} />
-						</div>
-					) : (
-						<div></div>
-					)}
-				</div>
-				<hr className="my-1" />{" "}
-				<Button type="submit" className="my-1 bg-white/[0.4] hover:bg-accent">
-					Save changes
-				</Button>
-			</form>
-		</div>
-	);
+          {/* Social Media Links Section */}
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="socialMediaLink1" className="text-right">
+              Social Media Link 1
+            </Label>
+            <Input
+              id="socialMediaLink1"
+              {...register("socialMediaLink1")}
+              className="col-span-3 text-white"
+            />
+          </div>
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="socialMediaLink2" className="text-right">
+              Social Media Link 2
+            </Label>
+            <Input
+              id="socialMediaLink2"
+              {...register("socialMediaLink2")}
+              className="col-span-3 text-white"
+            />
+          </div>
+
+          <hr />
+
+          {/* Visibility Settings Section */}
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="showProfilePhoto" className="text-right col-span-2">
+              Display Picture
+            </Label>
+            <Input
+              type="checkbox"
+              id="showProfilePhoto"
+              {...register("showProfilePhoto")}
+              className="col-span-2 mx-auto w-5 text-black"
+            />
+          </div>
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="showDescription" className="text-right col-span-2">
+              Description
+            </Label>
+            <Input
+              type="checkbox"
+              id="showDescription"
+              {...register("showDescription")}
+              className="col-span-2 mx-auto w-5 text-black"
+            />
+          </div>
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="showFullName" className="text-right col-span-2">
+              Name
+            </Label>
+            <Input
+              type="checkbox"
+              id="showFullName"
+              {...register("showFullName")}
+              className="col-span-2 mx-auto w-5 text-black"
+            />
+          </div>
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="isPrivate" className="text-right col-span-2">
+              Private Profile
+            </Label>
+            <Input
+              type="checkbox"
+              id="isPrivate"
+              {...register("isPrivate")}
+              className="col-span-2 mx-auto w-5 text-black"
+            />
+          </div>
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="showPhone" className="text-right col-span-2">
+              Show Contact Number
+            </Label>
+            <Input
+              type="checkbox"
+              id="showPhone"
+              {...register("showPhone")}
+              className="col-span-2 mx-auto w-5 text-black"
+            />
+          </div>
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="showFollowers" className="text-right col-span-2">
+              Show Followers
+            </Label>
+            <Input
+              type="checkbox"
+              id="showFollowers"
+              {...register("showFollowers")}
+              className="col-span-2 mx-auto w-5 text-black"
+            />
+          </div>
+
+          <hr />
+
+          {/* Featured Designs Section */}
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="showDesigns" className="text-right col-span-2">
+              Show Featured Designs
+            </Label>
+            <Input
+              type="checkbox"
+              id="showDesigns"
+              {...register("showDesigns")}
+              className="col-span-2 mx-auto w-5 text-black"
+            />
+          </div>
+
+          <hr />
+
+          {/* Conditional Product Selection */}
+          {watch("showDesigns") && (
+            <div>
+              <SelectProductModal designerId={designerId} />
+            </div>
+          )}
+        </div>
+
+        <hr className="my-1" />
+
+        {/* Submit Button */}
+        <Button
+          type="submit"
+          className="my-1 bg-white/[0.4] hover:bg-accent"
+          disabled={loading}
+        >
+          {loading ? "Saving..." : "Save Changes"}
+        </Button>
+      </form>
+    </div>
+  );
 };
 
 export default FormContent;

@@ -6,7 +6,7 @@ import {
 	DialogHeader,
 	DialogTitle,
 	DialogTrigger,
-} from "@/components/ui/dialog";
+} from "@/presentation/components/ui/dialog";
 import { DialogClose } from "@radix-ui/react-dialog";
 
 export default function EditProfile() {

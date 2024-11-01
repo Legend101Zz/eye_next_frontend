@@ -1,3 +1,5 @@
+/// TO BE IMPLEMENTED PRORPERLY
+
 /**
  * Design Editor Hook
  * @module application/hooks/design/useDesignEditor

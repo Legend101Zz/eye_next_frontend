@@ -14,6 +14,8 @@ export interface FinalProductQueryParams {
   color?: string;
   /** Page number */
   page?: number;
+  /** Sales*/
+  sales?: number;
 }
 
 /**
@@ -56,7 +58,7 @@ export interface IFinalProductRepository {
    */
   getCategoriesWithoutProducts(
     designerId: string,
-    designImageUrl?: string,
+    designImageUrl?: string
   ): Promise<string[]>;
 
   /**
@@ -71,7 +73,7 @@ export interface IFinalProductRepository {
     params?: {
       category?: string;
       color?: string;
-    },
+    }
   ): Promise<{
     products: IFinalProductResponse[];
     designUrl: string;
@@ -89,7 +91,7 @@ export interface IFinalProductRepository {
     params?: {
       category?: string;
       color?: string;
-    },
+    }
   ): Promise<{
     products: GroupedProduct[];
     designerName: string;
@@ -121,6 +123,6 @@ export interface IFinalProductRepository {
         position: "front" | "back";
       }>;
     },
-    files: File[],
+    files: File[]
   ): Promise<IFinalProductResponse>;
 }

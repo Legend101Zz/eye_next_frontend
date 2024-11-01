@@ -7,7 +7,7 @@ import {
   CarouselItem,
   CarouselNext,
   CarouselPrevious,
-} from "@/components/ui/carousel";
+} from "@/presentation/components/ui/carousel";
 
 const HeroBanner = () => {
   return (

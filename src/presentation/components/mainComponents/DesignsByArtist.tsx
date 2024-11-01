@@ -7,16 +7,34 @@ import {
 	CarouselItem,
 	CarouselNext,
 	CarouselPrevious,
-} from "@/components/ui/carousel";
-import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
-import { useRandomDesigns } from "@/hooks/useRandomDesigns";
-import DesignCard from "@/components/mainComponents/DesignCard";
+} from "@/presentation/components/ui/carousel";
+import { Button } from "@/presentation/components/ui/button";
+import { Skeleton } from "@/presentation/components/ui/skeleton";
+import { useDesign } from "@/application/hooks/design/useDesign";
+import DesignCard from "@/presentation/components/mainComponents/DesignCard";
 
 type Props = {};
 
 const DesignsByArtist = (props: Props) => {
-	const { designs, loading } = useRandomDesigns();
+	// Use the design hook, focusing on random designs functionality
+	const {
+		randomDesigns: designs,
+		loading,
+		error,
+		fetchRandomDesigns,
+	} = useDesign({
+		shouldFetchOnMount: true,
+	});
+
+	// Handle error state
+	if (error) {
+		return (
+			<div className="text-white text-center p-4 bg-red-500/10">
+				Failed to load designs: {error}
+			</div>
+		);
+	}
+
 	return (
 		<div className="">
 			<div>
@@ -30,23 +48,23 @@ const DesignsByArtist = (props: Props) => {
 					<CarouselContent className="px-5 gap-5 lg:gap-10">
 						{loading || designs.length === 0
 							? [1, 2, 3, 4, 5].map((e, idx) => {
-									return (
-										<div key={idx}>
-											<CarouselItem className="pl-1 basis-1/2 md:basis-1/3 lg:basis-1/6  ">
-												<LoadingCard />
-											</CarouselItem>
-										</div>
-									);
-							  })
+								return (
+									<div key={idx}>
+										<CarouselItem className="pl-1 basis-1/2 md:basis-1/3 lg:basis-1/6  ">
+											<LoadingCard />
+										</CarouselItem>
+									</div>
+								);
+							})
 							: designs.map((e, index) => (
-									<DesignCard
-										designImageUrl={e.designPhotoUrl}
-										designName="kraker"
-										designerId="12312345"
-										designerName="design"
-										key={index}
-									/>
-							  ))}
+								<DesignCard
+									designImageUrl={e.designImage[0].url}
+									designName={e.title || "not available"}
+									designerId={e.id || "not available"}
+									likesCount={e.likes || 0}
+									key={index}
+								/>
+							))}
 					</CarouselContent>
 					<CarouselPrevious />
 					<CarouselNext />
