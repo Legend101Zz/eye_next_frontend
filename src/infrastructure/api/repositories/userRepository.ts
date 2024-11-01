@@ -4,23 +4,16 @@ import { IUserRepository } from "@/domain/ports/repositories/IUserRepository";
 import { API_ENDPOINTS } from "../endpoints";
 import {
   User,
-  UserProfile,
   Address,
   CartItem,
-  UserQueryParams,
-  UserStats,
-  WishlistItem,
-  Order,
-  PaginatedUsers,
-  UserPreferences,
-  FollowedDesigner,
+  UserProfile,
 } from "@/domain/entities/user.entity";
 
 /**
  * User Repository Implementation
  * Handles all user-related data operations with caching
  */
-export class UserRepository implements IUserRepository {
+export class UserRepository implements Partial<IUserRepository> {
   constructor(
     private readonly apiClient: ApiClient,
     private readonly cacheService: ICacheService,
@@ -76,7 +69,7 @@ export class UserRepository implements IUserRepository {
   ): Promise<User> {
     try {
       const response = await this.apiClient.post<User>(
-        API_ENDPOINTS.USERS.PROFILE(userId),
+        API_ENDPOINTS.USERS.PROFILE,
         profile,
       );
 
@@ -100,10 +93,10 @@ export class UserRepository implements IUserRepository {
   async addAddress(
     userId: string,
     address: Omit<Address, "id">,
-  ): Promise<User> {
+  ): Promise<void> {
     try {
-      const response = await this.apiClient.post<User>(
-        `${API_ENDPOINTS.USERS.BY_ID(userId)}/addresses`,
+      const response = await this.apiClient.post<void>(
+        API_ENDPOINTS.USERS.ADDRESS_ADD(userId),
         address,
       );
 
@@ -117,62 +110,6 @@ export class UserRepository implements IUserRepository {
   }
 
   /**
-   * Update user address
-   *
-   * @param userId - User ID
-   * @param addressId - Address ID
-   * @param address - Updated address data
-   * @returns Promise resolving to updated user
-   */
-  async updateAddress(
-    userId: string,
-    addressId: string,
-    address: Partial<Address>,
-  ): Promise<User> {
-    try {
-      const response = await this.apiClient.post<User>(
-        `${API_ENDPOINTS.USERS.BY_ID(userId)}/addresses/${addressId}`,
-        address,
-      );
-
-      await this.cacheService.deleteByTags([`user:${userId}`]);
-
-      return response;
-    } catch (error) {
-      console.error(
-        `Error updating address ${addressId} for user ${userId}:`,
-        error,
-      );
-      throw error;
-    }
-  }
-
-  /**
-   * Delete user address
-   *
-   * @param userId - User ID
-   * @param addressId - Address ID
-   * @returns Promise resolving to updated user
-   */
-  async deleteAddress(userId: string, addressId: string): Promise<User> {
-    try {
-      const response = await this.apiClient.delete<User>(
-        `${API_ENDPOINTS.USERS.BY_ID(userId)}/addresses/${addressId}`,
-      );
-
-      await this.cacheService.deleteByTags([`user:${userId}`]);
-
-      return response;
-    } catch (error) {
-      console.error(
-        `Error deleting address ${addressId} for user ${userId}:`,
-        error,
-      );
-      throw error;
-    }
-  }
-
-  /**
    * Add item to user's cart
    *
    * @param userId - User ID
@@ -181,12 +118,13 @@ export class UserRepository implements IUserRepository {
    */
   async addToCart(
     userId: string,
-    item: Omit<CartItem, "id">,
-  ): Promise<CartItem[]> {
+    productId: string,
+    quantity: number,
+  ): Promise<void> {
     try {
-      const response = await this.apiClient.post<CartItem[]>(
-        API_ENDPOINTS.USERS.CART(userId),
-        item,
+      const response = await this.apiClient.post<void>(
+        API_ENDPOINTS.USERS.CART_ADD,
+        { productId, quantity },
       );
 
       await this.cacheService.deleteByTags([`user:${userId}`, "cart"]);
@@ -208,13 +146,13 @@ export class UserRepository implements IUserRepository {
    */
   async updateCartItemQuantity(
     userId: string,
-    itemId: string,
+    productId: string,
     quantity: number,
-  ): Promise<CartItem[]> {
+  ): Promise<void> {
     try {
-      const response = await this.apiClient.post<CartItem[]>(
-        `${API_ENDPOINTS.USERS.CART(userId)}/${itemId}`,
-        { quantity },
+      const response = await this.apiClient.post<void>(
+        API_ENDPOINTS.USERS.CART_UPDATE,
+        { productId, quantity, userId },
       );
 
       await this.cacheService.deleteByTags([`user:${userId}`, "cart"]);
@@ -236,10 +174,11 @@ export class UserRepository implements IUserRepository {
    * @param itemId - Cart item ID
    * @returns Promise resolving to updated cart
    */
-  async removeFromCart(userId: string, itemId: string): Promise<CartItem[]> {
+  async removeFromCart(userId: string, productId: string): Promise<void> {
     try {
-      const response = await this.apiClient.delete<CartItem[]>(
-        `${API_ENDPOINTS.USERS.CART(userId)}/${itemId}`,
+      const response = await this.apiClient.post<void>(
+        API_ENDPOINTS.USERS.CART_DELETE,
+        { productId, userId },
       );
 
       await this.cacheService.deleteByTags([`user:${userId}`, "cart"]);
@@ -289,9 +228,10 @@ export class UserRepository implements IUserRepository {
    */
   async followDesigner(userId: string, designerId: string): Promise<void> {
     try {
-      await this.apiClient.post(
-        API_ENDPOINTS.USERS.FOLLOW_DESIGNER(designerId),
-      );
+      await this.apiClient.post<void>(API_ENDPOINTS.USERS.FOLLOW_DESIGNER, {
+        userId,
+        designerId,
+      });
 
       // Invalidate relevant caches
       await this.cacheService.deleteByTags([
@@ -317,9 +257,10 @@ export class UserRepository implements IUserRepository {
    */
   async unfollowDesigner(userId: string, designerId: string): Promise<void> {
     try {
-      await this.apiClient.delete(
-        API_ENDPOINTS.USERS.UNFOLLOW_DESIGNER(designerId),
-      );
+      await this.apiClient.post<void>(API_ENDPOINTS.USERS.UNFOLLOW_DESIGNER, {
+        userId,
+        designerId,
+      });
 
       await this.cacheService.deleteByTags([
         `user:${userId}`,
@@ -335,185 +276,187 @@ export class UserRepository implements IUserRepository {
     }
   }
 
-  /**
-   * Get followed designers
-   *
-   * @param userId - User ID
-   * @returns Promise resolving to followed designers
-   */
-  async getFollowedDesigners(userId: string): Promise<FollowedDesigner[]> {
-    const cacheKey = `user:${userId}:following`;
+  // THE BELOW WILL BE IMPLEMENTED IN BACKEND FIRST
 
-    try {
-      const cached = await this.cacheService.get<FollowedDesigner[]>(cacheKey);
-      if (cached) return cached;
+  // /**
+  //  * Get followed designers
+  //  *
+  //  * @param userId - User ID
+  //  * @returns Promise resolving to followed designers
+  //  */
+  // async getFollowedDesigners(userId: string): Promise<FollowedDesigner[]> {
+  //   const cacheKey = `user:${userId}:following`;
 
-      const response = await this.apiClient.get<FollowedDesigner[]>(
-        `${API_ENDPOINTS.USERS.BY_ID(userId)}/following`,
-      );
+  //   try {
+  //     const cached = await this.cacheService.get<FollowedDesigner[]>(cacheKey);
+  //     if (cached) return cached;
 
-      await this.cacheService.set(cacheKey, response, {
-        ttl: 1800,
-        tags: [`user:${userId}`, "following"],
-      });
+  //     const response = await this.apiClient.get<FollowedDesigner[]>(
+  //       `${API_ENDPOINTS.USERS.BY_ID(userId)}/following`,
+  //     );
 
-      return response;
-    } catch (error) {
-      console.error(
-        `Error fetching followed designers for user ${userId}:`,
-        error,
-      );
-      throw error;
-    }
-  }
+  //     await this.cacheService.set(cacheKey, response, {
+  //       ttl: 1800,
+  //       tags: [`user:${userId}`, "following"],
+  //     });
 
-  /**
-   * Get user's order history
-   *
-   * @param userId - User ID
-   * @param page - Page number
-   * @param limit - Items per page
-   * @returns Promise resolving to paginated orders
-   */
-  async getOrders(
-    userId: string,
-    page: number = 1,
-    limit: number = 10,
-  ): Promise<{
-    orders: Order[];
-    total: number;
-    page: number;
-    totalPages: number;
-  }> {
-    const cacheKey = `user:${userId}:orders:${page}:${limit}`;
+  //     return response;
+  //   } catch (error) {
+  //     console.error(
+  //       `Error fetching followed designers for user ${userId}:`,
+  //       error,
+  //     );
+  //     throw error;
+  //   }
+  // }
 
-    try {
-      const cached = await this.cacheService.get<any>(cacheKey);
-      if (cached) return cached;
+  // /**
+  //  * Get user's order history
+  //  *
+  //  * @param userId - User ID
+  //  * @param page - Page number
+  //  * @param limit - Items per page
+  //  * @returns Promise resolving to paginated orders
+  //  */
+  // async getOrders(
+  //   userId: string,
+  //   page: number = 1,
+  //   limit: number = 10,
+  // ): Promise<{
+  //   orders: Order[];
+  //   total: number;
+  //   page: number;
+  //   totalPages: number;
+  // }> {
+  //   const cacheKey = `user:${userId}:orders:${page}:${limit}`;
 
-      const response = await this.apiClient.get(
-        API_ENDPOINTS.USERS.ORDERS(userId),
-        { params: { page, limit } },
-      );
+  //   try {
+  //     const cached = await this.cacheService.get<any>(cacheKey);
+  //     if (cached) return cached;
 
-      await this.cacheService.set(cacheKey, response, {
-        ttl: 3600,
-        tags: [`user:${userId}`, "orders"],
-      });
+  //     const response = await this.apiClient.get(
+  //       API_ENDPOINTS.USERS.ORDERS(userId),
+  //       { params: { page, limit } },
+  //     );
 
-      return response;
-    } catch (error) {
-      console.error(`Error fetching orders for user ${userId}:`, error);
-      throw error;
-    }
-  }
+  //     await this.cacheService.set(cacheKey, response, {
+  //       ttl: 3600,
+  //       tags: [`user:${userId}`, "orders"],
+  //     });
 
-  /**
-   * Update user preferences
-   *
-   * @param userId - User ID
-   * @param preferences - Updated preferences
-   * @returns Promise resolving to updated user
-   */
-  async updatePreferences(
-    userId: string,
-    preferences: Partial<UserPreferences>,
-  ): Promise<User> {
-    try {
-      const response = await this.apiClient.post<User>(
-        `${API_ENDPOINTS.USERS.BY_ID(userId)}/preferences`,
-        preferences,
-      );
+  //     return response;
+  //   } catch (error) {
+  //     console.error(`Error fetching orders for user ${userId}:`, error);
+  //     throw error;
+  //   }
+  // }
 
-      await this.cacheService.deleteByTags([`user:${userId}`]);
+  // /**
+  //  * Update user preferences
+  //  *
+  //  * @param userId - User ID
+  //  * @param preferences - Updated preferences
+  //  * @returns Promise resolving to updated user
+  //  */
+  // async updatePreferences(
+  //   userId: string,
+  //   preferences: Partial<UserPreferences>,
+  // ): Promise<User> {
+  //   try {
+  //     const response = await this.apiClient.post<User>(
+  //       `${API_ENDPOINTS.USERS.BY_ID(userId)}/preferences`,
+  //       preferences,
+  //     );
 
-      return response;
-    } catch (error) {
-      console.error(`Error updating preferences for user ${userId}:`, error);
-      throw error;
-    }
-  }
+  //     await this.cacheService.deleteByTags([`user:${userId}`]);
 
-  /**
-   * Get user's wishlist
-   *
-   * @param userId - User ID
-   * @returns Promise resolving to wishlist items
-   */
-  async getWishlist(userId: string): Promise<WishlistItem[]> {
-    const cacheKey = `user:${userId}:wishlist`;
+  //     return response;
+  //   } catch (error) {
+  //     console.error(`Error updating preferences for user ${userId}:`, error);
+  //     throw error;
+  //   }
+  // }
 
-    try {
-      const cached = await this.cacheService.get<WishlistItem[]>(cacheKey);
-      if (cached) return cached;
+  // /**
+  //  * Get user's wishlist
+  //  *
+  //  * @param userId - User ID
+  //  * @returns Promise resolving to wishlist items
+  //  */
+  // async getWishlist(userId: string): Promise<WishlistItem[]> {
+  //   const cacheKey = `user:${userId}:wishlist`;
 
-      const response = await this.apiClient.get<WishlistItem[]>(
-        API_ENDPOINTS.USERS.WISHLIST(userId),
-      );
+  //   try {
+  //     const cached = await this.cacheService.get<WishlistItem[]>(cacheKey);
+  //     if (cached) return cached;
 
-      await this.cacheService.set(cacheKey, response, {
-        ttl: 3600,
-        tags: [`user:${userId}`, "wishlist"],
-      });
+  //     const response = await this.apiClient.get<WishlistItem[]>(
+  //       API_ENDPOINTS.USERS.WISHLIST(userId),
+  //     );
 
-      return response;
-    } catch (error) {
-      console.error(`Error fetching wishlist for user ${userId}:`, error);
-      throw error;
-    }
-  }
+  //     await this.cacheService.set(cacheKey, response, {
+  //       ttl: 3600,
+  //       tags: [`user:${userId}`, "wishlist"],
+  //     });
 
-  /**
-   * Add item to wishlist
-   *
-   * @param userId - User ID
-   * @param productId - Product ID to add
-   * @returns Promise resolving to updated wishlist
-   */
-  async addToWishlist(
-    userId: string,
-    productId: string,
-  ): Promise<WishlistItem[]> {
-    try {
-      const response = await this.apiClient.post<WishlistItem[]>(
-        API_ENDPOINTS.USERS.WISHLIST(userId),
-        { productId },
-      );
+  //     return response;
+  //   } catch (error) {
+  //     console.error(`Error fetching wishlist for user ${userId}:`, error);
+  //     throw error;
+  //   }
+  // }
 
-      await this.cacheService.deleteByTags([`user:${userId}`, "wishlist"]);
+  // /**
+  //  * Add item to wishlist
+  //  *
+  //  * @param userId - User ID
+  //  * @param productId - Product ID to add
+  //  * @returns Promise resolving to updated wishlist
+  //  */
+  // async addToWishlist(
+  //   userId: string,
+  //   productId: string,
+  // ): Promise<WishlistItem[]> {
+  //   try {
+  //     const response = await this.apiClient.post<WishlistItem[]>(
+  //       API_ENDPOINTS.USERS.WISHLIST(userId),
+  //       { productId },
+  //     );
 
-      return response;
-    } catch (error) {
-      console.error(`Error adding item to wishlist for user ${userId}:`, error);
-      throw error;
-    }
-  }
+  //     await this.cacheService.deleteByTags([`user:${userId}`, "wishlist"]);
 
-  /**
-   * Remove item from wishlist
-   *
-   * @param userId - User ID
-   * @param productId - Product ID to remove
-   * @returns Promise resolving to updated wishlist
-   */
-  async removeFromWishlist(
-    userId: string,
-    productId: string,
-  ): Promise<WishlistItem[]> {
-    try {
-      const response = await this.apiClient.delete<WishlistItem[]>(
-        `${API_ENDPOINTS.USERS.WISHLIST(userId)}/${productId}`,
-      );
+  //     return response;
+  //   } catch (error) {
+  //     console.error(`Error adding item to wishlist for user ${userId}:`, error);
+  //     throw error;
+  //   }
+  // }
 
-      await this.cacheService.deleteByTags([`user:${userId}`, "wishlist"]);
+  // /**
+  //  * Remove item from wishlist
+  //  *
+  //  * @param userId - User ID
+  //  * @param productId - Product ID to remove
+  //  * @returns Promise resolving to updated wishlist
+  //  */
+  // async removeFromWishlist(
+  //   userId: string,
+  //   productId: string,
+  // ): Promise<WishlistItem[]> {
+  //   try {
+  //     const response = await this.apiClient.delete<WishlistItem[]>(
+  //       `${API_ENDPOINTS.USERS.WISHLIST(userId)}/${productId}`,
+  //     );
 
-      return response;
-    } catch (error) {
-      console.error(
-        `Error removing item from wishlist for user ${userId}:`,
-        error,
-      );
-      throw error;
-    }
-  }
+  //     await this.cacheService.deleteByTags([`user:${userId}`, "wishlist"]);
+
+  //     return response;
+  //   } catch (error) {
+  //     console.error(
+  //       `Error removing item from wishlist for user ${userId}:`,
+  //       error,
+  //     );
+  //     throw error;
+  //   }
+  // }
 }

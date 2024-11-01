@@ -47,7 +47,7 @@ export enum Gender {
 }
 
 /**
- * Represents an image with its position on the product
+ * Represents the image of the product with its position telling which side (portion) of product it shows
  */
 export interface ProductImage {
   id: string;
@@ -63,9 +63,9 @@ export interface Product {
   id: string;
   name: string;
   quantity: number;
-  colors: Color[];
+  color: Color[];
   category: Category;
-  images: ProductImage[];
+  image: ProductImage[];
   sizes: Size[];
   basePrice: number;
   gender: Gender;

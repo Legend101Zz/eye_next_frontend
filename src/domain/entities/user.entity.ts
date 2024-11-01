@@ -21,6 +21,36 @@ export interface User {
 }
 
 /**
+ * Represents a user's profile information.
+ */
+export interface UserProfile {
+  /**
+   * The user's phone number.
+   */
+  phone: string;
+
+  /**
+   * The user's full name.
+   */
+  name: string;
+
+  /**
+   * A brief description or bio of the user.
+   */
+  description: string;
+
+  /**
+   * The unique identifier for the user.
+   */
+  userId: string;
+
+  /**
+   * The user's unique username.
+   */
+  username: string;
+}
+
+/**
  * Represents a user's address information.
  */
 export interface Address {
@@ -39,7 +69,7 @@ export interface Address {
  * Represents an item in user's shopping cart.
  */
 export interface CartItem {
-  productId: string;
+  finalProductId: string;
   quantity: number;
 }
 

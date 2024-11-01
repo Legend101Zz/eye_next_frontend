@@ -9,63 +9,87 @@ export const API_ENDPOINTS = {
   },
 
   PRODUCTS: {
-    BASE: "/products",
-    BY_ID: (id: string) => `/products/${id}`,
-    BY_CATEGORY: (category: string) => `/products/category/${category}`,
-    SEARCH: "/products/search",
-    TRENDING: "/products/trending",
-    LATEST: "/products/latest",
-    COLORS: (category: string) => `/products/${category}/colors`,
-    SIZES: (category: string) => `/products/${category}/sizes`,
+    BASE: "/product",
+    CREATE: "/product/create",
+    BY_ID: (id: string) => `/product/read/${id}`,
+    BY_NAME: "/product/getProductByName",
+    IMAGE: "/product/images",
+    COLOR: "/product/getColor",
+    // BY_CATEGORY: (category: string) => `/products/category/${category}`,
+    // SEARCH: "/products/search",
+    // TRENDING: "/products/trending",
+    // LATEST: "/products/latest",
+    // COLORS: (category: string) => `/products/${category}/colors`,
+    // SIZES: (category: string) => `/products/${category}/sizes`,
   },
 
   DESIGNS: {
     BASE: "/designs",
-    BY_ID: (id: string) => `/designs/${id}`,
     BY_DESIGNER: (designerId: string) => `/designs/designer/${designerId}`,
-    VERIFY: (id: string) => `/designs/${id}/verify`,
-    REJECT: (id: string) => `/designs/${id}/reject`,
-    UPLOAD: "/designs/upload",
+    SHOW_ALL: "/designs/show",
     SEARCH: "/designs/search",
-    TRENDING: "/designs/trending",
-    LATEST: "/designs/latest",
+    RANDOM: "/designs/random",
+    UPDATE: (designId: string) => `/designs/update/${designId}`,
+    // TRENDING: "/designs/trending",
+    // LATEST: "/designs/latest",
   },
 
   USERS: {
     BASE: "/users",
-    BY_ID: (id: string) => `/users/${id}`,
-    PROFILE: (id: string) => `/users/${id}/profile`,
-    ORDERS: (id: string) => `/users/${id}/orders`,
-    CART: (id: string) => `/users/${id}/cart`,
-    WISHLIST: (id: string) => `/users/${id}/wishlist`,
-    FOLLOW_DESIGNER: (designerId: string) => `/users/follow/${designerId}`,
-    UNFOLLOW_DESIGNER: (designerId: string) => `/users/unfollow/${designerId}`,
+    CREATE: "/user/create",
+    BY_ID: (id: string) => `/user/info/${id}`,
+    PASSWORD_UPDATE: "/user/update-password",
+    PROFILE: "/user/profile",
+    ADDRESS: (id: string) => `/user/address/${id}`,
+    ADDRESS_ADD: (id: string) => `/user/address/${id}`,
+    ORDERS: (id: string) => `/user/${id}/orders`, /// to be created in backend
+    CART: (id: string) => `/user/getCart/${id}`,
+    CART_ADD: "/user/addToCart",
+    CART_DELETE: "/user/deleteFromCart",
+    CART_UPDATE: "/user/updateCart",
+    WISHLIST: (id: string) => `/user/${id}/wishlist`, /// to be created in backend
+    FOLLOW_DESIGNER: "/user/follow",
+    UNFOLLOW_DESIGNER: "/user/unfollow",
   },
 
   FINAL_PRODUCTS: {
     BASE: "/final-products",
-    BY_ID: (id: string) => `/final-products/${id}`,
+    CREATE: "/finalproduct/create-final-products",
+    ALL: "/finalproduct/products",
+    BY_ID: (id: string) => `/finalproduct/product/${id}`,
     BY_DESIGNER: (designerId: string) =>
-      `/final-products/designer/${designerId}`,
-    BY_DESIGN: (designId: string) => `/final-products/design/${designId}`,
-    TRENDING: "/final-products/trending",
-    LATEST: "/final-products/latest",
-    SEARCH: "/final-products/search",
+      `/finalproduct/products/designer/${designerId}`,
+    BY_DESIGN: (designId: string) =>
+      `/finalproduct/products/design/${designId}`,
+    CATEGORIES_PRODUCT: (designerId: string) =>
+      `/finalproduct/categories-without-products/${designerId}`,
+    LATEST: "/finalproduct/latest",
+    // TRENDING: "/final-products/trending",
+
+    // SEARCH: "/final-products/search",
   },
 
   DESIGNERS: {
-    BASE: "/designers",
+    BASE: "/designer",
 
+    // Get Random Designers
+    RANDOM: "/designer/getRandomDesigner",
     // Basic CRUD
-    BY_ID: (id: string) => `/designers/${id}`,
-    REQUEST: "/designers/request",
-    PROFILE: (id: string) => `/designers/${id}/profile`,
-    SETTINGS: (id: string) => `/designers/${id}/settings`,
+    BY_ID: (id: string) => `/designer/viewProfile/${id}`,
+    REQUEST: "/designer/request",
+    UPDATE: "/designer/updateProfile",
+    CREATE_DESIGN: "/designer/createDesign",
+
+    // profile settings
+    SETTINGS: (id: string) => `/designer/show-designer-settings/${id}`,
+    UPDATE_SETTINGS: (id: string) => `/designer/update-settings/${id}`,
 
     // Profile & Portfolio
+    PERSONAL_PROFILE: (id: string) => `/designer/personalProfile/${id}`,
     PORTFOLIO: (id: string) => `/designers/${id}/portfolio`,
     DOCUMENTS: (id: string) => `/designers/${id}/documents`,
-    UPLOAD_PHOTO: (id: string) => `/designers/${id}/photo`,
+    UPLOAD_PHOTO: "/designer/addProfilePhoto",
+    ADD_PAN_CARD: "/designer/addPanCard",
     COVER_IMAGE: (id: string) => `/designers/${id}/cover`,
     BIO: (id: string) => `/designers/${id}/bio`,
     SOCIAL_LINKS: (id: string) => `/designers/${id}/social-links`,
@@ -78,7 +102,7 @@ export const API_ENDPOINTS = {
     TAX_INFO: (id: string) => `/designers/${id}/tax`,
 
     // Designs & Products
-    DESIGNS: (id: string) => `/designers/${id}/designs`,
+    DESIGN_IMAGES: (id: string) => `/designer/design-images/${id}`,
     PRODUCTS: (id: string) => `/designers/${id}/products`,
     COLLECTIONS: (id: string) => `/designers/${id}/collections`,
     FEATURED_DESIGNS: (id: string) => `/designers/${id}/designs/featured`,

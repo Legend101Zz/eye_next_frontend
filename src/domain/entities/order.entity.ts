@@ -1,5 +1,7 @@
+// Note this has to be implemented in backend first
+
 import { Address } from "./user.entity";
-import { CartItem } from "./cart.entity";
+import { CartItem } from "./user.entity";
 
 export interface Order {
   id: string;

@@ -34,7 +34,7 @@ export interface DesignerSettings {
  */
 export interface Designer {
   id: string;
-  userId: string; // Reference to User entity
+  userId: string; // Reference to User ID of the designer ... as person first becomes a user and then a designer
   followers: string[]; // Array of User IDs
   profileImage?: Image;
   coverImage?: Image;

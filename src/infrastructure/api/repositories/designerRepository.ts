@@ -1,25 +1,14 @@
 import { ApiClient } from "../client";
 import { ICacheService } from "@/domain/ports/services/ICacheService";
 import { IDesignerRepository } from "@/domain/ports/repositories/IDesignerRepository";
+import { Designer, DesignerSettings } from "@/domain/entities/designer.entity";
 import { API_ENDPOINTS } from "../endpoints";
-import {
-  Designer,
-  DesignerProfile,
-  DesignerStats,
-  DesignerSettings,
-  DesignerQueryParams,
-  DesignerEarnings,
-  PaginatedDesigners,
-  DesignerAnalytics,
-  SalesReport,
-  PortfolioItem,
-  LegalDocument,
-  DesignerVerificationStatus,
-} from "@/domain/entities/designer.entity";
 
 /**
- * Designer Repository Implementation
- * Handles all designer-related data operations with caching
+ * Repository implementation for handling designer-related operations
+ * Provides data access and caching for designer profiles, designs, and settings
+ *
+ * @implements {IDesignerRepository}
  */
 export class DesignerRepository implements IDesignerRepository {
   constructor(
@@ -28,54 +17,52 @@ export class DesignerRepository implements IDesignerRepository {
   ) {}
 
   /**
-   * Find designer by ID
-   *
-   * @param id - Designer ID
-   * @returns Promise resolving to designer
-   * @throws {NotFoundError} If designer doesn't exist
-   */
-  async findById(id: string): Promise<Designer> {
-    const cacheKey = `designer:${id}`;
-
-    try {
-      const cached = await this.cacheService.get<Designer>(cacheKey);
-      if (cached) return cached;
-
-      const response = await this.apiClient.get<Designer>(
-        `${API_ENDPOINTS.DESIGNERS.BY_ID(id)}`,
-      );
-
-      await this.cacheService.set(cacheKey, response, {
-        ttl: 1800, // 30 minutes
-        tags: ["designers", `designer:${id}`],
-      });
-
-      return response;
-    } catch (error) {
-      console.error(`Error fetching designer ${id}:`, error);
-      throw error;
-    }
-  }
-
-  /**
-   * Request to become a designer
+   * Request designer status for a user
+   * Creates a new designer profile with initial data and files
    *
    * @param userId - User ID requesting designer status
-   * @param data - Designer profile data
+   * @param data - Designer profile data including personal and business information
+   * @param files - Array of files including profile photo and cover photo
    * @returns Promise resolving to created designer profile
    * @throws {ValidationError} If data is invalid
+   * @throws {FileUploadError} If file upload fails
+   *
+   * @example
+   * ```typescript
+   * const designer = await designerRepo.requestDesigner(
+   *   "user123",
+   *   {
+   *     fullname: "John Doe",
+   *     artistName: "JD Arts",
+   *     description: "Digital artist specializing in modern designs"
+   *   },
+   *   [profilePhotoFile, coverPhotoFile]
+   * );
+   * ```
    */
-  async requestDesignerStatus(
+  async requestDesigner(
     userId: string,
-    data: Omit<Designer, "id" | "isApproved">,
+    data: any,
+    files: File[],
   ): Promise<Designer> {
     try {
+      const formData = new FormData();
+
+      formData.append("userId", userId);
+      Object.entries(data).forEach(([key, value]) => {
+        if (Array.isArray(value)) {
+          formData.append(key, JSON.stringify(value));
+        } else {
+          formData.append(key, value as string);
+        }
+      });
+
+      files.forEach((file) => formData.append("files", file));
+
       const response = await this.apiClient.post<Designer>(
         API_ENDPOINTS.DESIGNERS.REQUEST,
-        {
-          userId,
-          ...data,
-        },
+        formData,
+        { headers: { "Content-Type": "multipart/form-data" } },
       );
 
       return response;
@@ -86,374 +73,418 @@ export class DesignerRepository implements IDesignerRepository {
   }
 
   /**
-   * Update designer profile
+   * Update designer profile information
+   * Modifies existing designer profile data
    *
    * @param designerId - Designer ID
-   * @param profile - Updated profile data
-   * @returns Promise resolving to updated designer
+   * @param updates - Object containing fields to update
+   * @returns Promise resolving to updated designer profile
+   * @throws {NotFoundError} If designer doesn't exist
+   * @throws {ValidationError} If update data is invalid
+   *
+   * @example
+   * ```typescript
+   * const updated = await designerRepo.updateDesignerProfile(
+   *   "designer123",
+   *   {
+   *     description: "Updated bio",
+   *     socialMedia: ["https://twitter.com/artist"]
+   *   }
+   * );
+   * ```
    */
-  async updateProfile(
+  async updateDesignerProfile(
     designerId: string,
-    profile: Partial<DesignerProfile>,
+    updates: any,
   ): Promise<Designer> {
     try {
-      const response = await this.apiClient.patch<Designer>(
-        API_ENDPOINTS.DESIGNERS.PROFILE(designerId),
-        profile,
+      const response = await this.apiClient.post<Designer>(
+        API_ENDPOINTS.DESIGNERS.UPDATE,
+        { designerId, updates },
       );
 
       await this.cacheService.deleteByTags([`designer:${designerId}`]);
 
       return response;
     } catch (error) {
-      console.error(
-        `Error updating profile for designer ${designerId}:`,
-        error,
-      );
+      console.error("Error updating designer profile:", error);
       throw error;
     }
   }
 
   /**
-   * Update designer settings
+   * Add or update designer's profile photo
+   *
+   * @param designerId - Designer ID
+   * @param file - Profile photo file
+   * @returns Promise resolving to updated designer profile
+   * @throws {NotFoundError} If designer doesn't exist
+   * @throws {FileUploadError} If upload fails
+   * @throws {ValidationError} If file is invalid
+   *
+   * @example
+   * ```typescript
+   * const updated = await designerRepo.addProfilePhoto(
+   *   "designer123",
+   *   profilePhotoFile
+   * );
+   * ```
+   */
+  async addProfilePhoto(designerId: string, file: File): Promise<Designer> {
+    try {
+      const formData = new FormData();
+      formData.append("designerId", designerId);
+      formData.append("file", file);
+
+      const response = await this.apiClient.post<Designer>(
+        API_ENDPOINTS.DESIGNERS.UPLOAD_PHOTO,
+        formData,
+        { headers: { "Content-Type": "multipart/form-data" } },
+      );
+
+      await this.cacheService.deleteByTags([`designer:${designerId}`]);
+
+      return response;
+    } catch (error) {
+      console.error("Error adding profile photo:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Upload designer's PAN card document
+   *
+   * @param designerId - Designer ID
+   * @param file - PAN card document file
+   * @returns Promise resolving to updated designer profile
+   * @throws {NotFoundError} If designer doesn't exist
+   * @throws {FileUploadError} If upload fails
+   * @throws {ValidationError} If file is invalid
+   *
+   * @example
+   * ```typescript
+   * const updated = await designerRepo.addPanCard(
+   *   "designer123",
+   *   panCardFile
+   * );
+   * ```
+   */
+  async addPanCard(designerId: string, file: File): Promise<Designer> {
+    try {
+      const formData = new FormData();
+      formData.append("designerId", designerId);
+      formData.append("file", file);
+
+      const response = await this.apiClient.post<Designer>(
+        API_ENDPOINTS.DESIGNERS.ADD_PAN_CARD,
+        formData,
+        { headers: { "Content-Type": "multipart/form-data" } },
+      );
+
+      await this.cacheService.deleteByTags([`designer:${designerId}`]);
+
+      return response;
+    } catch (error) {
+      console.error("Error adding PAN card:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get designer's public profile information
+   * Returns only publicly visible data based on designer's privacy settings
+   *
+   * @param designerId - Designer ID
+   * @returns Promise resolving to public profile data
+   * @throws {NotFoundError} If designer doesn't exist
+   * @throws {PrivacyError} If profile is private
+   *
+   * @example
+   * ```typescript
+   * const publicProfile = await designerRepo.getPublicProfile("designer123");
+   * ```
+   */
+  async getPublicProfile(designerId: string): Promise<any> {
+    const cacheKey = `designer:${designerId}:public`;
+
+    try {
+      const cached = await this.cacheService.get<any>(cacheKey);
+      if (cached) return cached;
+
+      const response = await this.apiClient.get<any>(
+        API_ENDPOINTS.DESIGNERS.BY_ID(designerId),
+      );
+
+      await this.cacheService.set(cacheKey, response, {
+        ttl: 3600,
+        tags: [`designer:${designerId}`, "public"],
+      });
+
+      return response;
+    } catch (error) {
+      console.error("Error fetching public profile:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get designer's personal profile information
+   * Returns complete profile data for authenticated designer
+   *
+   * @param designerId - Designer ID
+   * @returns Promise resolving to complete profile data
+   * @throws {NotFoundError} If designer doesn't exist
+   * @throws {AuthorizationError} If unauthorized to view profile
+   *
+   * @example
+   * ```typescript
+   * const personalProfile = await designerRepo.getPersonalProfile("designer123");
+   * ```
+   */
+  async getPersonalProfile(designerId: string): Promise<any> {
+    const cacheKey = `designer:${designerId}:personal`;
+
+    try {
+      const cached = await this.cacheService.get<any>(cacheKey);
+      if (cached) return cached;
+
+      const response = await this.apiClient.get<any>(
+        API_ENDPOINTS.DESIGNERS.PERSONAL_PROFILE(designerId),
+      );
+
+      await this.cacheService.set(cacheKey, response, {
+        ttl: 1800,
+        tags: [`designer:${designerId}`, "personal"],
+      });
+
+      return response;
+    } catch (error) {
+      console.error("Error fetching personal profile:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get designs created by a designer
+   *
+   * @param designerId - Designer ID
+   * @returns Promise resolving to array of designer's designs
+   * @throws {NotFoundError} If designer doesn't exist
+   *
+   * @example
+   * ```typescript
+   * const designs = await designerRepo.getDesigns("designer123");
+   * ```
+   */
+  async getDesigns(designerId: string): Promise<
+    Array<{
+      title: string;
+      description: string;
+      designImages: Array<{ url: string }>;
+    }>
+  > {
+    const cacheKey = `designer:${designerId}:designs`;
+
+    try {
+      const cached = await this.cacheService.get<any>(cacheKey);
+      if (cached) return cached;
+
+      const response = await this.apiClient.get<any>(
+        API_ENDPOINTS.DESIGNERS.DESIGN_IMAGES(designerId),
+      );
+
+      await this.cacheService.set(cacheKey, response, {
+        ttl: 1800,
+        tags: [`designer:${designerId}`, "designs"],
+      });
+
+      return response;
+    } catch (error) {
+      console.error("Error fetching designs:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get random designers with their featured designs
+   * Returns approved designers with public profiles
+   *
+   * @returns Promise resolving to array of random designers
+   * @throws {ApiError} If fetching fails
+   *
+   * @example
+   * ```typescript
+   * const randomDesigners = await designerRepo.getRandomDesigners();
+   * ```
+   */
+  async getRandomDesigners(): Promise<
+    Array<{
+      profileImage: string | null;
+      designImage: string | null;
+      totalDesigns: number;
+      designerFollowers: number;
+      designName: string;
+      designerId: string;
+      designerName: string;
+    }>
+  > {
+    const cacheKey = "designers:random";
+
+    try {
+      const cached = await this.cacheService.get<any>(cacheKey);
+      if (cached) return cached;
+
+      const response = await this.apiClient.get<any>(
+        API_ENDPOINTS.DESIGNERS.RANDOM,
+      );
+
+      await this.cacheService.set(cacheKey, response, {
+        ttl: 300,
+        tags: ["designers", "random"],
+      });
+
+      return response;
+    } catch (error) {
+      console.error("Error fetching random designers:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Create a new design
+   * Uploads design file and associates it with the designer
+   *
+   * @param designerId - Designer ID
+   * @param data - Design metadata
+   * @param file - Design image file
+   * @returns Promise resolving to created design
+   * @throws {NotFoundError} If designer doesn't exist
+   * @throws {ValidationError} If data or file is invalid
+   * @throws {FileUploadError} If file upload fails
+   *
+   * @example
+   * ```typescript
+   * const design = await designerRepo.createDesign(
+   *   "designer123",
+   *   {
+   *     title: "Summer Collection",
+   *     description: "Vibrant summer designs"
+   *   },
+   *   designFile
+   * );
+   * ```
+   */
+  async createDesign(
+    designerId: string,
+    data: {
+      title?: string;
+      description?: string;
+      productId?: string;
+    },
+    file: File,
+  ): Promise<any> {
+    try {
+      const formData = new FormData();
+      formData.append("designerId", designerId);
+      formData.append("file", file);
+
+      if (data.title) formData.append("title", data.title);
+      if (data.description) formData.append("description", data.description);
+      if (data.productId) formData.append("productId", data.productId);
+
+      const response = await this.apiClient.post<any>(
+        API_ENDPOINTS.DESIGNERS.CREATE_DESIGN,
+        formData,
+        { headers: { "Content-Type": "multipart/form-data" } },
+      );
+
+      await this.cacheService.deleteByTags([
+        `designer:${designerId}`,
+        "designs",
+      ]);
+
+      return response;
+    } catch (error) {
+      console.error("Error creating design:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get designer's settings
+   * Returns privacy and display preferences
+   *
+   * @param designerId - Designer ID
+   * @returns Promise resolving to designer settings
+   * @throws {NotFoundError} If designer doesn't exist
+   *
+   * @example
+   * ```typescript
+   * const settings = await designerRepo.getSettings("designer123");
+   * ```
+   */
+  async getSettings(designerId: string): Promise<DesignerSettings> {
+    const cacheKey = `designer:${designerId}:settings`;
+
+    try {
+      const cached = await this.cacheService.get<DesignerSettings>(cacheKey);
+      if (cached) return cached;
+
+      const response = await this.apiClient.get<DesignerSettings>(
+        API_ENDPOINTS.DESIGNERS.SETTINGS(designerId),
+      );
+
+      await this.cacheService.set(cacheKey, response, {
+        ttl: 1800,
+        tags: [`designer:${designerId}`, "settings"],
+      });
+
+      return response;
+    } catch (error) {
+      console.error("Error fetching designer settings:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Update designer's settings
+   * Modifies privacy and display preferences
    *
    * @param designerId - Designer ID
    * @param settings - Updated settings
-   * @returns Promise resolving to updated designer
+   * @returns Promise resolving to updated designer profile
+   * @throws {NotFoundError} If designer doesn't exist
+   * @throws {ValidationError} If settings are invalid
+   *
+   * @example
+   * ```typescript
+   * const updated = await designerRepo.updateSettings(
+   *   "designer123",
+   *   {
+   *     isPrivate: false,
+   *     showFollowers: true
+   *   }
+   * );
+   * ```
    */
   async updateSettings(
     designerId: string,
     settings: Partial<DesignerSettings>,
   ): Promise<Designer> {
     try {
-      const response = await this.apiClient.patch<Designer>(
-        API_ENDPOINTS.DESIGNERS.SETTINGS(designerId),
-        settings,
+      const response = await this.apiClient.post<Designer>(
+        API_ENDPOINTS.DESIGNERS.UPDATE_SETTINGS(designerId),
+        { settings },
       );
 
-      await this.cacheService.deleteByTags([`designer:${designerId}`]);
+      await this.cacheService.deleteByTags([
+        `designer:${designerId}`,
+        "settings",
+      ]);
 
       return response;
     } catch (error) {
-      console.error(
-        `Error updating settings for designer ${designerId}:`,
-        error,
-      );
-      throw error;
-    }
-  }
-
-  /**
-   * Get designer earnings
-   *
-   * @param designerId - Designer ID
-   * @param startDate - Start date for earnings period
-   * @param endDate - End date for earnings period
-   * @returns Promise resolving to earnings data
-   */
-  async getEarnings(
-    designerId: string,
-    startDate?: Date,
-    endDate?: Date,
-  ): Promise<DesignerEarnings> {
-    const cacheKey = `designer:${designerId}:earnings:${startDate?.toISOString()}:${endDate?.toISOString()}`;
-
-    try {
-      const cached = await this.cacheService.get<DesignerEarnings>(cacheKey);
-      if (cached) return cached;
-
-      const response = await this.apiClient.get<DesignerEarnings>(
-        API_ENDPOINTS.DESIGNERS.EARNINGS(designerId),
-        {
-          params: {
-            startDate: startDate?.toISOString(),
-            endDate: endDate?.toISOString(),
-          },
-        },
-      );
-
-      await this.cacheService.set(cacheKey, response, {
-        ttl: 1800,
-        tags: [`designer:${designerId}`, "earnings"],
-      });
-
-      return response;
-    } catch (error) {
-      console.error(
-        `Error fetching earnings for designer ${designerId}:`,
-        error,
-      );
-      throw error;
-    }
-  }
-
-  /**
-   * Get designer analytics
-   *
-   * @param designerId - Designer ID
-   * @returns Promise resolving to analytics data
-   */
-  async getAnalytics(designerId: string): Promise<DesignerAnalytics> {
-    const cacheKey = `designer:${designerId}:analytics`;
-
-    try {
-      const cached = await this.cacheService.get<DesignerAnalytics>(cacheKey);
-      if (cached) return cached;
-
-      const response = await this.apiClient.get<DesignerAnalytics>(
-        API_ENDPOINTS.DESIGNERS.ANALYTICS(designerId),
-      );
-
-      await this.cacheService.set(cacheKey, response, {
-        ttl: 1800,
-        tags: [`designer:${designerId}`, "analytics"],
-      });
-
-      return response;
-    } catch (error) {
-      console.error(
-        `Error fetching analytics for designer ${designerId}:`,
-        error,
-      );
-      throw error;
-    }
-  }
-
-  /**
-   * Get sales report
-   *
-   * @param designerId - Designer ID
-   * @param period - Report period ('daily' | 'weekly' | 'monthly' | 'yearly')
-   * @returns Promise resolving to sales report
-   */
-  async getSalesReport(
-    designerId: string,
-    period: string,
-  ): Promise<SalesReport> {
-    const cacheKey = `designer:${designerId}:sales:${period}`;
-
-    try {
-      const cached = await this.cacheService.get<SalesReport>(cacheKey);
-      if (cached) return cached;
-
-      const response = await this.apiClient.get<SalesReport>(
-        API_ENDPOINTS.DESIGNERS.SALES_REPORT(designerId),
-        { params: { period } },
-      );
-
-      await this.cacheService.set(cacheKey, response, {
-        ttl: 1800,
-        tags: [`designer:${designerId}`, "sales"],
-      });
-
-      return response;
-    } catch (error) {
-      console.error(
-        `Error fetching sales report for designer ${designerId}:`,
-        error,
-      );
-      throw error;
-    }
-  }
-
-  /**
-   * Update portfolio
-   *
-   * @param designerId - Designer ID
-   * @param items - Portfolio items
-   * @returns Promise resolving to updated designer
-   */
-  async updatePortfolio(
-    designerId: string,
-    items: PortfolioItem[],
-  ): Promise<Designer> {
-    try {
-      const response = await this.apiClient.put<Designer>(
-        API_ENDPOINTS.DESIGNERS.PORTFOLIO(designerId),
-        { items },
-      );
-
-      await this.cacheService.deleteByTags([`designer:${designerId}`]);
-
-      return response;
-    } catch (error) {
-      console.error(
-        `Error updating portfolio for designer ${designerId}:`,
-        error,
-      );
-      throw error;
-    }
-  }
-
-  /**
-   * Upload legal documents
-   *
-   * @param designerId - Designer ID
-   * @param documents - Legal documents to upload
-   * @returns Promise resolving to updated designer
-   */
-  async uploadLegalDocuments(
-    designerId: string,
-    documents: File[],
-  ): Promise<LegalDocument[]> {
-    try {
-      const formData = new FormData();
-      documents.forEach((doc) => formData.append("documents", doc));
-
-      const response = await this.apiClient.post<LegalDocument[]>(
-        API_ENDPOINTS.DESIGNERS.DOCUMENTS(designerId),
-        formData,
-        {
-          headers: { "Content-Type": "multipart/form-data" },
-        },
-      );
-
-      await this.cacheService.deleteByTags([`designer:${designerId}`]);
-
-      return response;
-    } catch (error) {
-      console.error(
-        `Error uploading documents for designer ${designerId}:`,
-        error,
-      );
-      throw error;
-    }
-  }
-
-  /**
-   * Get verification status
-   *
-   * @param designerId - Designer ID
-   * @returns Promise resolving to verification status
-   */
-  async getVerificationStatus(
-    designerId: string,
-  ): Promise<DesignerVerificationStatus> {
-    const cacheKey = `designer:${designerId}:verification`;
-
-    try {
-      const cached =
-        await this.cacheService.get<DesignerVerificationStatus>(cacheKey);
-      if (cached) return cached;
-
-      const response = await this.apiClient.get<DesignerVerificationStatus>(
-        API_ENDPOINTS.DESIGNERS.VERIFICATION_STATUS(designerId),
-      );
-
-      await this.cacheService.set(cacheKey, response, {
-        ttl: 300, // 5 minutes
-        tags: [`designer:${designerId}`, "verification"],
-      });
-
-      return response;
-    } catch (error) {
-      console.error(
-        `Error fetching verification status for designer ${designerId}:`,
-        error,
-      );
-      throw error;
-    }
-  }
-
-  /**
-   * Get featured designers
-   *
-   * @param limit - Maximum number of designers to return
-   * @returns Promise resolving to featured designers
-   */
-  async getFeaturedDesigners(limit: number = 10): Promise<Designer[]> {
-    const cacheKey = `designers:featured:${limit}`;
-
-    try {
-      const cached = await this.cacheService.get<Designer[]>(cacheKey);
-      if (cached) return cached;
-
-      const response = await this.apiClient.get<Designer[]>(
-        API_ENDPOINTS.DESIGNERS.FEATURED,
-        { params: { limit } },
-      );
-
-      await this.cacheService.set(cacheKey, response, {
-        ttl: 3600, // 1 hour
-        tags: ["designers", "featured"],
-      });
-
-      return response;
-    } catch (error) {
-      console.error("Error fetching featured designers:", error);
-      throw error;
-    }
-  }
-
-  /**
-   * Get top earning designers
-   *
-   * @param timeframe - Timeframe for earnings ('week' | 'month' | 'year')
-   * @param limit - Maximum number of designers to return
-   * @returns Promise resolving to top earning designers
-   */
-  async getTopEarners(
-    timeframe: string = "month",
-    limit: number = 10,
-  ): Promise<Designer[]> {
-    const cacheKey = `designers:top-earners:${timeframe}:${limit}`;
-
-    try {
-      const cached = await this.cacheService.get<Designer[]>(cacheKey);
-      if (cached) return cached;
-
-      const response = await this.apiClient.get<Designer[]>(
-        API_ENDPOINTS.DESIGNERS.TOP_EARNERS,
-        { params: { timeframe, limit } },
-      );
-
-      await this.cacheService.set(cacheKey, response, {
-        ttl: 3600,
-        tags: ["designers", "top-earners"],
-      });
-
-      return response;
-    } catch (error) {
-      console.error("Error fetching top earning designers:", error);
-      throw error;
-    }
-  }
-
-  /**
-   * Get designer followers
-   *
-   * @param designerId - Designer ID
-   * @param page - Page number
-   * @param limit - Items per page
-   * @returns Promise resolving to paginated followers
-   */
-  async getFollowers(
-    designerId: string,
-    page: number = 1,
-    limit: number = 20,
-  ): Promise<PaginatedDesigners> {
-    const cacheKey = `designer:${designerId}:followers:${page}:${limit}`;
-
-    try {
-      const cached = await this.cacheService.get<PaginatedDesigners>(cacheKey);
-      if (cached) return cached;
-
-      const response = await this.apiClient.get<PaginatedDesigners>(
-        API_ENDPOINTS.DESIGNERS.FOLLOWERS(designerId),
-        { params: { page, limit } },
-      );
-
-      await this.cacheService.set(cacheKey, response, {
-        ttl: 1800,
-        tags: [`designer:${designerId}`, "followers"],
-      });
-
-      return response;
-    } catch (error) {
-      console.error(
-        `Error fetching followers for designer ${designerId}:`,
-        error,
-      );
+      console.error("Error updating designer settings:", error);
       throw error;
     }
   }

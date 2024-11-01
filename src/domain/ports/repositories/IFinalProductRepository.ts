@@ -1,190 +1,126 @@
 import { IBaseRepository } from "./IBaseRepository";
 import {
-  Category,
-  Color,
-  Gender,
-  Size,
-} from "@/domain/entities/product.entity";
-import {
-  FinalProduct,
-  CreateFinalProductData,
+  GroupedProduct,
+  IFinalProductResponse,
 } from "@/domain/entities/finalProduct.entity";
 
 /**
- * Query parameters for searching final products
+ * Query parameters for filtering final products
  */
 export interface FinalProductQueryParams {
-  /** Text search in product name */
-  search?: string;
-
   /** Filter by category */
-  category?: Category;
-
-  /** Filter by designer */
-  designerId?: string;
-
-  /** Filter by base product */
-  baseProductId?: string;
-
-  /** Filter by design */
-  designId?: string;
-
+  category?: string;
   /** Filter by color */
-  color?: Color;
-
-  /** Filter by gender */
-  gender?: Gender;
-
-  /** Filter by sizes (for apparel) */
-  sizes?: Size[];
-
-  /** Price range filter */
-  price?: {
-    min?: number;
-    max?: number;
-  };
-
-  /** Sales range filter */
-  sales?: {
-    min?: number;
-    max?: number;
-  };
-
-  /** Date range filter */
-  dateRange?: {
-    start?: Date;
-    end?: Date;
-  };
-
-  /** Sort options */
-  sortBy?: "price" | "sales" | "newest" | "popularity";
-  sortOrder?: "asc" | "desc";
-
-  /** Pagination */
+  color?: string;
+  /** Page number */
   page?: number;
-  limit?: number;
-}
-
-/**
- * Paginated response for final products
- */
-export interface PaginatedFinalProducts {
-  products: FinalProduct[];
-  total: number;
-  page: number;
-  totalPages: number;
-  limit: number;
-  hasMore: boolean;
 }
 
 /**
  * Final Product Repository Interface
+ * Handles operations for products with applied designs
  */
-export interface IFinalProductRepository extends IBaseRepository<FinalProduct> {
+export interface IFinalProductRepository {
   /**
-   * Create a new final product by applying designs to a base product
-   *
-   * @param data - Data required to create the final product
-   * @returns Promise resolving to created final product
-   * @throws {NotFoundError} If base product or designs don't exist
-   * @throws {ValidationError} If data is invalid
-   */
-  createWithDesigns(data: CreateFinalProductData): Promise<FinalProduct>;
-
-  /**
-   * Find all final products with filtering and pagination
+   * Get paginated list of final products
    *
    * @param params - Query parameters
-   * @returns Promise resolving to paginated results
+   * @returns Promise resolving to products grouped by design and category
+   * @throws {DatabaseError} If query fails
+   *
+   * @example
+   * ```typescript
+   * const products = await finalProductRepo.getProducts({
+   *   category: "t-shirt",
+   *   page: 1
+   * });
+   * ```
    */
-  findAll(params: FinalProductQueryParams): Promise<PaginatedFinalProducts>;
+  getProducts(params: FinalProductQueryParams): Promise<GroupedProduct[]>;
 
   /**
-   * Find products by designer
+   * Get single product details
    *
-   * @param designerId - ID of the designer
-   * @param params - Additional query parameters
-   * @returns Promise resolving to paginated results
+   * @param productId - Final product ID
+   * @returns Promise resolving to product details
+   * @throws {NotFoundError} If product doesn't exist
    */
-  findByDesigner(
+  getSingleProduct(productId: string): Promise<IFinalProductResponse>;
+
+  /**
+   * Get categories without products for designer
+   *
+   * @param designerId - Designer ID
+   * @param designImageUrl - Optional design image URL
+   * @returns Promise resolving to available categories
+   */
+  getCategoriesWithoutProducts(
     designerId: string,
-    params?: Omit<FinalProductQueryParams, "designerId">,
-  ): Promise<PaginatedFinalProducts>;
+    designImageUrl?: string,
+  ): Promise<string[]>;
 
   /**
-   * Find products using a specific design
+   * Get all products using a specific design
    *
-   * @param designId - ID of the design
-   * @param params - Additional query parameters
-   * @returns Promise resolving to paginated results
+   * @param designId - Design ID
+   * @param params - Filter parameters
+   * @returns Promise resolving to products and design URL
    */
-  findByDesign(
+  getProductsByDesign(
     designId: string,
-    params?: Omit<FinalProductQueryParams, "designId">,
-  ): Promise<PaginatedFinalProducts>;
-
-  /**
-   * Find variants of a base product
-   *
-   * @param baseProductId - ID of the base product
-   * @param params - Additional query parameters
-   * @returns Promise resolving to paginated results
-   */
-  findVariants(
-    baseProductId: string,
-    params?: Omit<FinalProductQueryParams, "baseProductId">,
-  ): Promise<PaginatedFinalProducts>;
-
-  /**
-   * Get best selling products
-   *
-   * @param params - Query parameters
-   * @returns Promise resolving to array of products
-   */
-  getBestSellers(
-    params?: Partial<FinalProductQueryParams>,
-  ): Promise<FinalProduct[]>;
-
-  /**
-   * Get trending products
-   * Based on recent sales and views
-   *
-   * @param params - Query parameters
-   * @returns Promise resolving to array of products
-   */
-  getTrending(
-    params?: Partial<FinalProductQueryParams>,
-  ): Promise<FinalProduct[]>;
-
-  /**
-   * Update product sales count
-   *
-   * @param productId - ID of the product
-   * @param quantity - Quantity sold
-   * @returns Promise resolving to updated product
-   */
-  updateSales(productId: string, quantity: number): Promise<FinalProduct>;
-
-  /**
-   * Get product analytics
-   *
-   * @param productId - ID of the product
-   * @returns Promise resolving to analytics data
-   */
-  getAnalytics(productId: string): Promise<{
-    totalSales: number;
-    revenue: number;
-    popularSizes?: { size: Size; count: number }[];
-    salesByDate: { date: Date; sales: number }[];
-    relatedProducts: string[];
+    params?: {
+      category?: string;
+      color?: string;
+    },
+  ): Promise<{
+    products: IFinalProductResponse[];
+    designUrl: string;
   }>;
 
   /**
-   * Find similar products
+   * Get all products by designer
    *
-   * @param productId - ID of the product
-   * @param limit - Maximum number of products to return
-   * @returns Promise resolving to array of similar products
+   * @param designerId - Designer ID
+   * @param params - Filter parameters
+   * @returns Promise resolving to grouped products and designer name
    */
-  findSimilar(productId: string, limit?: number): Promise<FinalProduct[]>;
+  getProductsByDesigner(
+    designerId: string,
+    params?: {
+      category?: string;
+      color?: string;
+    },
+  ): Promise<{
+    products: GroupedProduct[];
+    designerName: string;
+  }>;
+
+  /**
+   * Get latest products
+   *
+   * @returns Promise resolving to latest grouped products
+   */
+  getLatestProducts(): Promise<GroupedProduct[]>;
+
+  /**
+   * Create new final product
+   *
+   * @param data - Product creation data
+   * @param files - Product images
+   * @returns Promise resolving to created product
+   * @throws {ValidationError} If data is invalid
+   */
+  createFinalProduct(
+    data: {
+      productId: string;
+      productName: string;
+      price: number;
+      color: string;
+      designApplications: Array<{
+        designImageUrl: string;
+        position: "front" | "back";
+      }>;
+    },
+    files: File[],
+  ): Promise<IFinalProductResponse>;
 }

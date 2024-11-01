@@ -1,149 +1,159 @@
 import { IBaseRepository } from "./IBaseRepository";
-import { User, Address } from "@/domain/entities/user.entity";
+import { User, Address, CartItem } from "@/domain/entities/user.entity";
+import { UserCredentials } from "@/domain/entities/auth.entity";
 
 /**
  * User Repository Interface
- *
- * Extends the base repository interface with user-specific operations.
- * Handles all data persistence operations related to User entities,
- * including specialized queries and business logic.
+ * Handles all user-related data persistence operations
  */
 export interface IUserRepository extends IBaseRepository<User> {
   /**
-   * Finds a user by their email address.
+   * Create a new user account
    *
-   * @param email - The email address to search for
-   * @returns Promise resolving to the found user or null if not found
-   * @throws {DatabaseError} If the query operation fails
+   * @param credentials - User credentials and profile data
+   * @returns Promise resolving to created user
+   * @throws {ValidationError} If data is invalid
+   * @throws {DuplicateEmailError} If email already exists
+   */
+  createUser(credentials: UserCredentials): Promise<User>;
+
+  /**
+   * Authenticate user login
+   *
+   * @param email - User's email
+   * @param password - User's password
+   * @returns Promise resolving to authenticated user or null
+   * @throws {AuthenticationError} If credentials are invalid
+   */
+  loginUser(email: string, password: string): Promise<User | null>;
+
+  /**
+   * Update user's password
+   *
+   * @param userId - User ID
+   * @param newPassword - New password
+   * @returns Promise resolving to updated user
+   * @throws {NotFoundError} If user doesn't exist
+   */
+  updatePassword(userId: string, newPassword: string): Promise<User>;
+
+  /**
+   * Update user profile information
+   *
+   * @param userId - User ID
+   * @param data - Profile data to update
+   * @returns Promise resolving to updated user
+   * @throws {NotFoundError} If user doesn't exist
+   */
+  updateUser(userId: string, data: Partial<User>): Promise<User>;
+
+  /**
+   * Get basic user information
+   *
+   * @param userId - User ID
+   * @returns Promise resolving to user info
+   * @throws {NotFoundError} If user doesn't exist
+   */
+  getUserInfo(userId: string): Promise<User>;
+
+  /**
+   * Find user by email
+   *
+   * @param email - Email to search for
+   * @returns Promise resolving to user or null
    */
   findByEmail(email: string): Promise<User | null>;
 
   /**
-   * Finds a user by their Google ID (for OAuth authentication).
+   * Find user by Google ID
    *
-   * @param googleId - The Google ID to search for
-   * @returns Promise resolving to the found user or null if not found
-   * @throws {DatabaseError} If the query operation fails
+   * @param googleId - Google ID to search for
+   * @returns Promise resolving to user or null
    */
   findByGoogleId(googleId: string): Promise<User | null>;
 
   /**
-   * Adds a new address to a user's profile.
+   * Add address to user profile
    *
-   * @param userId - The ID of the user to add the address to
-   * @param address - The address data to add
-   * @returns Promise resolving to the updated user
-   * @throws {NotFoundError} If the user doesn't exist
-   * @throws {ValidationError} If the address data is invalid
-   * @throws {DatabaseError} If the operation fails
+   * @param userId - User ID
+   * @param address - Address to add
+   * @returns Promise resolving to updated user
+   * @throws {NotFoundError} If user doesn't exist
+   * @throws {ValidationError} If address data is invalid
    */
-  addAddress(userId: string, address: Omit<Address, "id">): Promise<User>;
+  addAddress(userId: string, address: Omit<Address, "id">): Promise<void>;
 
   /**
-   * Removes an address from a user's profile.
+   * Get user's addresses
    *
-   * @param userId - The ID of the user to remove the address from
-   * @param addressId - The ID of the address to remove
-   * @returns Promise resolving to the updated user
-   * @throws {NotFoundError} If the user or address doesn't exist
-   * @throws {DatabaseError} If the operation fails
+   * @param userId - User ID
+   * @param type - Optional address type filter
+   * @returns Promise resolving to addresses
+   * @throws {NotFoundError} If user doesn't exist
    */
-  removeAddress(userId: string, addressId: string): Promise<User>;
+  getAddresses(userId: string, type?: string): Promise<Address[]>;
 
   /**
-   * Updates an existing address in a user's profile.
+   * Add item to user's cart
    *
-   * @param userId - The ID of the user whose address to update
-   * @param addressId - The ID of the address to update
-   * @param addressData - The new address data
-   * @returns Promise resolving to the updated user
-   * @throws {NotFoundError} If the user or address doesn't exist
-   * @throws {ValidationError} If the address data is invalid
-   * @throws {DatabaseError} If the operation fails
+   * @param userId - User ID
+   * @param productId - Product ID to add
+   * @param quantity - Quantity to add
+   * @returns Promise resolving to updated user
    */
-  updateAddress(
-    userId: string,
-    addressId: string,
-    addressData: Partial<Address>,
-  ): Promise<User>;
+  addToCart(userId: string, productId: string, quantity: number): Promise<void>;
 
   /**
-   * Adds an item to the user's shopping cart.
+   * Get user's cart contents
    *
-   * @param userId - The ID of the user
-   * @param productId - The ID of the product to add
-   * @param quantity - The quantity to add
-   * @returns Promise resolving to the updated user
-   * @throws {NotFoundError} If the user or product doesn't exist
-   * @throws {ValidationError} If the quantity is invalid
-   * @throws {DatabaseError} If the operation fails
+   * @param userId - User ID
+   * @returns Promise resolving to cart items
+   * @throws {NotFoundError} If user doesn't exist
    */
-  addToCart(userId: string, productId: string, quantity: number): Promise<User>;
+  getUserCart(userId: string): Promise<CartItem[]>;
 
   /**
-   * Updates the quantity of an item in the user's cart.
+   * Update cart item quantity
    *
-   * @param userId - The ID of the user
-   * @param productId - The ID of the product to update
-   * @param quantity - The new quantity
-   * @returns Promise resolving to the updated user
-   * @throws {NotFoundError} If the user or cart item doesn't exist
-   * @throws {ValidationError} If the quantity is invalid
-   * @throws {DatabaseError} If the operation fails
+   * @param userId - User ID
+   * @param productId - Product ID to update
+   * @param quantity - New quantity
+   * @returns Promise resolving to updated user
    */
   updateCartItemQuantity(
     userId: string,
     productId: string,
     quantity: number,
-  ): Promise<User>;
+  ): Promise<void>;
 
   /**
-   * Removes an item from the user's cart.
+   * Remove item from cart
    *
-   * @param userId - The ID of the user
-   * @param productId - The ID of the product to remove
-   * @returns Promise resolving to the updated user
-   * @throws {NotFoundError} If the user or cart item doesn't exist
-   * @throws {DatabaseError} If the operation fails
+   * @param userId - User ID
+   * @param productId - Product ID to remove
+   * @returns Promise resolving to updated user
    */
-  removeFromCart(userId: string, productId: string): Promise<User>;
+  removeFromCart(userId: string, productId: string): Promise<void>;
 
   /**
-   * Adds a designer to the user's following list.
+   * Follow a designer
    *
-   * @param userId - The ID of the user
-   * @param designerId - The ID of the designer to follow
-   * @returns Promise resolving to the updated user
-   * @throws {NotFoundError} If the user or designer doesn't exist
-   * @throws {ValidationError} If the user is already following the designer
-   * @throws {DatabaseError} If the operation fails
+   * @param userId - User ID
+   * @param designerId - Designer ID to follow
+   * @returns Promise resolving to updated user
+   * @throws {NotFoundError} If user or designer doesn't exist
+   * @throws {ValidationError} If already following
    */
-  followDesigner(userId: string, designerId: string): Promise<User>;
+  followDesigner(userId: string, designerId: string): Promise<void>;
 
   /**
-   * Removes a designer from the user's following list.
+   * Unfollow a designer
    *
-   * @param userId - The ID of the user
-   * @param designerId - The ID of the designer to unfollow
-   * @returns Promise resolving to the updated user
-   * @throws {NotFoundError} If the user or designer doesn't exist
-   * @throws {ValidationError} If the user is not following the designer
-   * @throws {DatabaseError} If the operation fails
+   * @param userId - User ID
+   * @param designerId - Designer ID to unfollow
+   * @returns Promise resolving to updated user
+   * @throws {NotFoundError} If user or designer doesn't exist
+   * @throws {ValidationError} If not following
    */
-  unfollowDesigner(userId: string, designerId: string): Promise<User>;
-
-  /**
-   * Updates the user's designer status and creates associated designer profile.
-   *
-   * @param userId - The ID of the user to promote to designer
-   * @param designerData - The initial designer profile data
-   * @returns Promise resolving to the updated user
-   * @throws {NotFoundError} If the user doesn't exist
-   * @throws {ValidationError} If the designer data is invalid
-   * @throws {DatabaseError} If the operation fails
-   */
-  promoteToDesigner(
-    userId: string,
-    designerData: Omit<Designer, "id">,
-  ): Promise<User>;
+  unfollowDesigner(userId: string, designerId: string): Promise<void>;
 }

@@ -3,7 +3,7 @@
  */
 
 /**
- * Represents an image in the system
+ * Represents an design image in the system
  */
 export interface DesignImage {
   id: string;
@@ -33,9 +33,12 @@ export interface Design {
   title: string;
   description?: string;
   designImage: DesignImage[]; // Original design images
-  designerId: string; // Reference to Designer
-  finalProducts: string[]; // References to FinalProducts using this design
+  designerId: string; // Reference to Designer who created the design
+  finalProduct: string[]; // References to FinalProducts using this design
   isVerified: boolean;
+  likes: number;
+  appliedCoundt: number;
+  tags: string[];
   createdAt: Date;
   updatedAt: Date;
 }

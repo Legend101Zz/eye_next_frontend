@@ -1,122 +1,169 @@
-import { IBaseRepository } from "./IBaseRepository";
-import {
-  Designer,
-  Image,
-  DesignerSettings,
-} from "@/domain/entities/designer.entity";
+import { Designer, DesignerSettings } from "@/domain/entities/designer.entity";
 
 /**
- * Repository interface for Designer entity operations
- * Extends the base repository with designer-specific operations
+ * Designer Repository Interface
+ * Handles all designer-related operations including profile management,
+ * file uploads, and settings
  */
-export interface IDesignerRepository extends IBaseRepository<Designer> {
+export interface IDesignerRepository {
   /**
-   * Find a designer by their associated user ID
+   * Request designer status for a user
+   * Creates a new designer profile with initial data
    *
-   * @param userId - The ID of the associated user
-   * @returns Promise resolving to Designer or null if not found
-   * @throws {DatabaseError} If the query fails
+   * @param userId - User ID requesting designer status
+   * @param data - Designer profile data
+   * @param files - Profile and cover photos
+   * @returns Promise resolving to created designer
+   * @throws {ValidationError} If data is invalid
+   *
+   * @example
+   * ```typescript
+   * const designer = await designerRepo.requestDesigner(
+   *   "user123",
+   *   { fullname: "John Doe", artistName: "JD Arts" },
+   *   [profilePhoto, coverPhoto]
+   * );
+   * ```
    */
-  findByUserId(userId: string): Promise<Designer | null>;
+  requestDesigner(
+    userId: string,
+    data: {
+      fullname: string;
+      artistName: string;
+      description?: string;
+      portfolioLinks?: string[];
+      cvLinks?: string[];
+      phone?: string;
+      panCardNumber?: string;
+      addressBody: any;
+    },
+    files: File[],
+  ): Promise<Designer>;
 
   /**
-   * Update a designer's settings
+   * Update designer profile
+   * Modifies designer profile information
    *
-   * @param designerId - The ID of the designer
-   * @param settings - The new settings to apply
-   * @returns Promise resolving to the updated Designer
-   * @throws {NotFoundError} If the designer doesn't exist
-   * @throws {ValidationError} If the settings are invalid
+   * @param designerId - Designer ID
+   * @param updates - Profile updates
+   * @returns Promise resolving to updated designer
+   * @throws {NotFoundError} If designer doesn't exist
+   */
+  updateDesignerProfile(
+    designerId: string,
+    updates: {
+      legal_first_name?: string;
+      legal_last_name?: string;
+      description?: string;
+      legal_address?: string[];
+      socialMedia?: string[];
+      portfolioLinks?: string[];
+    },
+  ): Promise<Designer>;
+
+  /**
+   * Add/update profile photo
+   *
+   * @param designerId - Designer ID
+   * @param file - Profile photo file
+   * @returns Promise resolving to updated designer
+   */
+  addProfilePhoto(designerId: string, file: File): Promise<Designer>;
+
+  /**
+   * Add PAN card document
+   *
+   * @param designerId - Designer ID
+   * @param file - PAN card document file
+   * @returns Promise resolving to updated designer
+   */
+  addPanCard(designerId: string, file: File): Promise<Designer>;
+
+  /**
+   * Get designer's public profile
+   *
+   * @param designerId - Designer ID
+   * @returns Promise resolving to public profile data
+   * @throws {NotFoundError} If designer doesn't exist
+   */
+  getPublicProfile(designerId: string): Promise<any>;
+
+  /**
+   * Get designer's personal profile
+   *
+   * @param designerId - Designer ID
+   * @returns Promise resolving to personal profile data
+   * @throws {NotFoundError} If designer doesn't exist
+   */
+  getPersonalProfile(designerId: string): Promise<any>;
+
+  /**
+   * Get designs by designer
+   *
+   * @param designerId - Designer ID
+   * @returns Promise resolving to designer's designs
+   */
+  getDesigns(designerId: string): Promise<
+    Array<{
+      title: string;
+      description: string;
+      designImages: Array<{ url: string }>;
+    }>
+  >;
+
+  /**
+   * Get random designers
+   * Returns random approved designers with their designs
+   *
+   * @returns Promise resolving to random designers
+   */
+  getRandomDesigners(): Promise<
+    Array<{
+      profileImage: string | null;
+      designImage: string | null;
+      totalDesigns: number;
+      designerFollowers: number;
+      designName: string;
+      designerId: string;
+      designerName: string;
+    }>
+  >;
+
+  /**
+   * Create new design
+   *
+   * @param designerId - Designer ID
+   * @param data - Design data
+   * @param file - Design image file
+   * @returns Promise resolving to created design
+   */
+  createDesign(
+    designerId: string,
+    data: {
+      title?: string;
+      description?: string;
+      productId?: string;
+    },
+    file: File,
+  ): Promise<any>;
+
+  /**
+   * Get designer settings
+   *
+   * @param designerId - Designer ID
+   * @returns Promise resolving to designer settings
+   */
+  getSettings(designerId: string): Promise<DesignerSettings>;
+
+  /**
+   * Update designer settings
+   *
+   * @param designerId - Designer ID
+   * @param settings - Updated settings
+   * @returns Promise resolving to updated designer
    */
   updateSettings(
     designerId: string,
     settings: Partial<DesignerSettings>,
   ): Promise<Designer>;
-
-  /**
-   * Add a follower to a designer's followers list
-   *
-   * @param designerId - The ID of the designer
-   * @param followerId - The ID of the user following the designer
-   * @returns Promise resolving to the updated Designer
-   * @throws {NotFoundError} If either entity doesn't exist
-   * @throws {ValidationError} If the user is already following
-   */
-  addFollower(designerId: string, followerId: string): Promise<Designer>;
-
-  /**
-   * Remove a follower from a designer's followers list
-   *
-   * @param designerId - The ID of the designer
-   * @param followerId - The ID of the user to remove
-   * @returns Promise resolving to the updated Designer
-   * @throws {NotFoundError} If either entity doesn't exist
-   */
-  removeFollower(designerId: string, followerId: string): Promise<Designer>;
-
-  /**
-   * Update a designer's approval status
-   *
-   * @param designerId - The ID of the designer
-   * @param isApproved - The new approval status
-   * @returns Promise resolving to the updated Designer
-   * @throws {NotFoundError} If the designer doesn't exist
-   */
-  updateApprovalStatus(
-    designerId: string,
-    isApproved: boolean,
-  ): Promise<Designer>;
-
-  /**
-   * Add a design to a designer's portfolio
-   *
-   * @param designerId - The ID of the designer
-   * @param designId - The ID of the design to add
-   * @returns Promise resolving to the updated Designer
-   * @throws {NotFoundError} If either entity doesn't exist
-   */
-  addDesign(designerId: string, designId: string): Promise<Designer>;
-
-  /**
-   * Remove a design from a designer's portfolio
-   *
-   * @param designerId - The ID of the designer
-   * @param designId - The ID of the design to remove
-   * @returns Promise resolving to the updated Designer
-   * @throws {NotFoundError} If either entity doesn't exist
-   */
-  removeDesign(designerId: string, designId: string): Promise<Designer>;
-
-  /**
-   * Update a designer's profile or cover image
-   *
-   * @param designerId - The ID of the designer
-   * @param imageType - Type of image to update ('profile' or 'cover')
-   * @param image - The new image data
-   * @returns Promise resolving to the updated Designer
-   * @throws {NotFoundError} If the designer doesn't exist
-   * @throws {ValidationError} If the image data is invalid
-   */
-  updateImage(
-    designerId: string,
-    imageType: "profile" | "cover",
-    image: Omit<Image, "id">,
-  ): Promise<Designer>;
-
-  /**
-   * Find designers by approval status
-   *
-   * @param isApproved - The approval status to filter by
-   * @returns Promise resolving to array of matching Designers
-   */
-  findByApprovalStatus(isApproved: boolean): Promise<Designer[]>;
-
-  /**
-   * Get the total number of followers for a designer
-   *
-   * @param designerId - The ID of the designer
-   * @returns Promise resolving to the follower count
-   * @throws {NotFoundError} If the designer doesn't exist
-   */
-  getFollowerCount(designerId: string): Promise<number>;
 }

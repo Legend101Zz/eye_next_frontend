@@ -47,5 +47,36 @@ export interface CreateFinalProductData {
     position: "front" | "back";
   }[];
   color: Color;
-  priceAdjustment?: number; // Optional price adjustment from base price
+  price?: number; // Optional price adjustment from base price
+}
+
+/**
+ * Final product response from API
+ */
+export interface IFinalProductResponse {
+  productName: string;
+  productId: string;
+  baseProductName: string;
+  mainImageUrl: string;
+  otherImages: string[];
+  price: number;
+  category: string;
+  color: string;
+  sales: number;
+  designs: Array<{
+    designName: string;
+    designerName: string;
+    position: "front" | "back";
+    appliedImageUrl: string;
+  }>;
+}
+
+/**
+ * Grouped product interface extending final product response
+ */
+export interface GroupedProduct extends Omit<IFinalProductResponse, "color"> {
+  colors: Array<{
+    color: string;
+    productId: string;
+  }>;
 }
