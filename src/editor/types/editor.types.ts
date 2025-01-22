@@ -45,14 +45,31 @@ export interface DesignsByView {
   [key: string]: Design[];
 }
 
+export interface ProductType {
+  id: string;
+  name: string;
+  category: string;
+  colors: string[];
+  images: {
+    [key: string]: {
+      // color
+      [key in ViewType]?: string; // view -> image URL
+    };
+  };
+}
+
 export interface EditorState {
   activeView: ViewType;
   garmentColor: string;
-  garmentType: "tshirt" | "hoodie" | "sweatshirt";
+  availableProducts: ProductType[];
+  activeProductId: string | null;
   designsByView: DesignsByView;
   activeDesignId: string | null;
+  designerId: string | null;
+  designs: Design[];
   isDragging: boolean;
   isEditing: boolean;
+  isLoading: boolean;
 }
 
 export interface CurvatureSettings {

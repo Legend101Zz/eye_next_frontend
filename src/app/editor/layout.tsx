@@ -1,7 +1,7 @@
-import type { Metadata } from "next";
+import { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { Toaster } from "@/components/ui/toaster";
-import { Providers } from "../store/provider";
+import StoreProvider from "./StoreProvider";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -12,16 +12,16 @@ export const metadata: Metadata = {
 
 export default function EditorLayout({
     children,
-}: Readonly<{
+}: {
     children: React.ReactNode;
-}>) {
+}) {
     return (
         <html lang="en">
             <body className={inter.className}>
-                <Providers>
+                <StoreProvider>
                     {children}
                     <Toaster />
-                </Providers>
+                </StoreProvider>
             </body>
         </html>
     );

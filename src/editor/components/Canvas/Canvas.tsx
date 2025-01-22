@@ -6,30 +6,32 @@ import { useCanvas } from '../../hooks/useCanvas';
 export const Canvas: React.FC = () => {
     const canvasElRef = useRef<HTMLCanvasElement>(null);
     const { initCanvas, cleanupCanvas } = useCanvas();
+    const initialized = useRef(false);
 
     useEffect(() => {
-        let canvas: HTMLCanvasElement | null = null;
+        let timeoutId: NodeJS.Timeout;
 
-        if (canvasElRef.current) {
-            canvas = canvasElRef.current;
-            initCanvas(canvas);
+        if (!initialized.current && canvasElRef.current) {
+            // Small delay to ensure DOM is ready
+            timeoutId = setTimeout(() => {
+                initialized.current = true;
+                initCanvas(canvasElRef.current!);
+            }, 0);
         }
 
-        // Cleanup function
         return () => {
-            if (canvas) {
+            if (timeoutId) {
+                clearTimeout(timeoutId);
+            }
+            if (initialized.current) {
+                initialized.current = false;
                 cleanupCanvas();
-                // Make sure the canvas element is empty
-                const context = canvas.getContext('2d');
-                if (context) {
-                    context.clearRect(0, 0, canvas.width, canvas.height);
-                }
             }
         };
     }, []);
 
     return (
-        <div className="w-full h-full bg-gray-50 rounded-lg overflow-hidden flex items-center justify-center">
+        <div className="w-full h-full bg-gray-50 rounded-lg overflow-hidden flex items-center justify-center relative">
             <canvas ref={canvasElRef} />
         </div>
     );

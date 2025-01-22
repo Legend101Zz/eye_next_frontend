@@ -12,16 +12,24 @@ import {
   Position,
   DesignsByView,
   BlendMode,
+  ProductType,
 } from "../types/editor.types";
+import {
+  getClothingProducts,
+  getDesignerDesigns,
+  getDesignById,
+} from "../../helpers/api/productEditorApi";
 
 // Separate interface for actions
 interface EditorActions {
+  //Initialize
+  initializeEditor: (designerId: string, initialDesignId?: string) => void;
+  setActiveProduct: (productId: string) => void;
   // View Management
   setActiveView: (view: ViewType) => void;
 
   // Garment Management
   setGarmentColor: (color: string) => void;
-  setGarmentType: (type: "tshirt" | "hoodie" | "sweatshirt") => void;
 
   // Design Management
   addDesign: (design: Design) => void;
@@ -80,21 +88,101 @@ const initialTransform: Transform = {
 const initialState: EditorState = {
   activeView: "front",
   garmentColor: "#ffffff",
-  garmentType: "tshirt",
+  availableProducts: [],
+  activeProductId: null,
   designsByView: {
     front: [],
     back: [],
     shoulder: [],
   },
   activeDesignId: null,
+  designerId: null,
+  designs: [],
   isDragging: false,
   isEditing: false,
+  isLoading: false,
 };
 
 export const useEditor = create<EditorStore>()(
   devtools(
     immer((set) => ({
       ...initialState,
+
+      // Initialize editor with products and designs
+      initializeEditor: async (
+        designerId: string,
+        initialDesignId?: string
+      ) => {
+        set((state) => {
+          state.isLoading = true;
+        });
+        try {
+          // Fetch available products
+          const products = await getClothingProducts();
+          console.log("products", products);
+
+          // No need for images.reduce since the API already gives us the grouped format
+          const formattedProducts: ProductType[] = products.map((p) => ({
+            id: p.id,
+            name: p.name,
+            category: p.category,
+            colors: p.colors,
+            images: p.images, // Already in the correct format
+          }));
+
+          // Fetch designer's designs
+          const designs = await getDesignerDesigns(designerId);
+          console.log("designs", designs);
+
+          // If initial design ID is provided, fetch and add it
+          let initialDesign = null;
+          if (initialDesignId) {
+            initialDesign = await getDesignById(initialDesignId);
+          }
+
+          set((state) => {
+            state.availableProducts = formattedProducts;
+            state.activeProductId = formattedProducts[0]?.id || null;
+            state.garmentColor = formattedProducts[0]?.colors[0] || "#ffffff";
+            state.designerId = designerId;
+            state.designs = designs;
+
+            if (initialDesign) {
+              state.designsByView.front.push({
+                id: initialDesign._id,
+                imageUrl: initialDesign.designImage[0].url,
+                transform: {
+                  position: { x: 300, y: 300 },
+                  scale: 1,
+                  rotation: 0,
+                },
+                visible: true,
+                locked: false,
+                opacity: 1,
+                blendMode: "normal",
+                zIndex: 0,
+              });
+            }
+          });
+        } catch (error) {
+          console.error("Error initializing editor:", error);
+        } finally {
+          set((state) => {
+            state.isLoading = false;
+          });
+        }
+      },
+
+      setActiveProduct: (productId: string) =>
+        set((state) => {
+          state.activeProductId = productId;
+          const product = state.availableProducts.find(
+            (p) => p.id === productId
+          );
+          if (product && !product.colors.includes(state.garmentColor)) {
+            state.garmentColor = product.colors[0];
+          }
+        }),
 
       // View Management
       setActiveView: (view) =>
@@ -125,15 +213,6 @@ export const useEditor = create<EditorStore>()(
           },
           false,
           "setGarmentColor"
-        ),
-
-      setGarmentType: (type) =>
-        set(
-          (state) => {
-            state.garmentType = type;
-          },
-          false,
-          "setGarmentType"
         ),
 
       // Design Management

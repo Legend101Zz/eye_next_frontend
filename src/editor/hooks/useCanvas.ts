@@ -1,4 +1,3 @@
-// @ts-nocheck
 "use client";
 
 import { useEffect, useRef } from "react";
@@ -8,109 +7,56 @@ import { useEditor } from "../store/editorStore";
 import { ViewType, Design } from "../types/editor.types";
 
 // Register the custom filter with fabric.js
+//@ts-ignore
 fabric.Image.filters.Curvature = CurvatureFilter;
+// Set global CORS policy for fabric
+fabric.Image.prototype.crossOrigin = "anonymous";
 
-// Define mockup images for different views and garment types
-const MOCKUP_IMAGES = {
-  tshirt: {
-    front: "/mockups/tshirt_front.png",
-    back: "/mockups/tshirt_back.png",
-    left: "/mockups/tshirt_front.png",
-    right: "/mockups/tshirt_front.png",
+// Design areas for different product types
+export const DESIGN_AREAS = {
+  HOODIE: {
+    front: {
+      top: 200,
+      left: 200,
+      width: 200,
+      height: 250,
+      maxWidth: 280,
+      maxHeight: 350,
+    },
+    back: {
+      top: 200,
+      left: 200,
+      width: 200,
+      height: 250,
+      maxWidth: 280,
+      maxHeight: 350,
+    },
   },
-  hoodie: {
-    front: "/mockups/tshirt_front.png",
-    back: "/mockups/tshirt_back.png",
-    left: "/mockups/tshirt_front.png",
-    right: "/mockups/tshirt_front.png",
+  TSHIRT: {
+    front: {
+      top: 200,
+      left: 200,
+      width: 200,
+      height: 250,
+      maxWidth: 280,
+      maxHeight: 350,
+    },
+    back: {
+      top: 200,
+      left: 200,
+      width: 200,
+      height: 250,
+      maxWidth: 280,
+      maxHeight: 350,
+    },
   },
+  // Add other product types as needed
 };
 
 const BLEND_MODES = {
-  light: {
-    mode: "multiply",
-    alpha: 1,
-  },
-  dark: {
-    mode: "screen",
-    alpha: 0.8,
-  },
-  normal: {
-    mode: "overlay",
-    alpha: 0.9,
-  },
-};
-
-// Define design placement areas for each view
-export const DESIGN_AREAS = {
-  tshirt: {
-    front: {
-      top: 200,
-      left: 200,
-      width: 200,
-      height: 250,
-      maxWidth: 280,
-      maxHeight: 350,
-    },
-    back: {
-      top: 200,
-      left: 200,
-      width: 200,
-      height: 250,
-      maxWidth: 280,
-      maxHeight: 350,
-    },
-    left: {
-      top: 200,
-      left: 150,
-      width: 100,
-      height: 150,
-      maxWidth: 140,
-      maxHeight: 200,
-    },
-    right: {
-      top: 200,
-      left: 150,
-      width: 100,
-      height: 150,
-      maxWidth: 140,
-      maxHeight: 200,
-    },
-  },
-  hoodie: {
-    front: {
-      top: 200,
-      left: 200,
-      width: 200,
-      height: 250,
-      maxWidth: 280,
-      maxHeight: 350,
-    },
-    back: {
-      top: 200,
-      left: 200,
-      width: 200,
-      height: 250,
-      maxWidth: 280,
-      maxHeight: 350,
-    },
-    left: {
-      top: 200,
-      left: 150,
-      width: 100,
-      height: 150,
-      maxWidth: 140,
-      maxHeight: 200,
-    },
-    right: {
-      top: 200,
-      left: 150,
-      width: 100,
-      height: 150,
-      maxWidth: 140,
-      maxHeight: 200,
-    },
-  },
+  light: { mode: "multiply", alpha: 1 },
+  dark: { mode: "screen", alpha: 0.8 },
+  normal: { mode: "overlay", alpha: 0.9 },
 };
 
 export const useCanvas = () => {
@@ -119,47 +65,214 @@ export const useCanvas = () => {
   const designRefsMap = useRef<Map<string, fabric.Image>>(new Map());
   const isInitializedRef = useRef(false);
   const isModifyingRef = useRef(false);
-  const previousViewRef = useRef<ViewType | null>(null);
 
   const {
     designsByView,
     activeView,
     activeDesignId,
+    activeProductId,
+    availableProducts,
     garmentColor,
-    garmentType,
     updateDesignTransform,
     setActiveDesign,
   } = useEditor();
 
-  // Helper function to determine color brightness
   const getBrightness = (color: string): number => {
-    // Remove # if present
-    color = color.replace("#", "");
-
-    // Convert hex to RGB
-    const r = parseInt(color.substr(0, 2), 16);
-    const g = parseInt(color.substr(2, 2), 16);
-    const b = parseInt(color.substr(4, 2), 16);
-
-    // Calculate perceived brightness (ITU-R BT.709)
+    const hex = color.replace("#", "");
+    const r = parseInt(hex.substr(0, 2), 16);
+    const g = parseInt(hex.substr(2, 2), 16);
+    const b = parseInt(hex.substr(4, 2), 16);
     return (r * 0.2126 + g * 0.7152 + b * 0.0722) / 255;
   };
 
-  // Apply color to mockup
-  const applyGarmentColor = (mockup: fabric.Image, color: string) => {
-    const colorBrightness = getBrightness(color);
-    const blendMode =
-      colorBrightness > 0.5 ? BLEND_MODES.light : BLEND_MODES.dark;
+  const applyColorToMockup = async (mockup: fabric.Image, color: string) => {
+    const brightness = getBrightness(color);
+    const blendMode = brightness > 0.5 ? BLEND_MODES.light : BLEND_MODES.dark;
 
     mockup.filters = [
       new fabric.Image.filters.BlendColor({
-        color: color,
+        color,
         mode: blendMode.mode,
         alpha: blendMode.alpha,
       }),
     ];
 
     mockup.applyFilters();
+  };
+
+  const loadMockup = async (view: ViewType) => {
+    if (!canvasRef.current || !activeProductId || !isInitializedRef.current)
+      return;
+
+    const canvas = canvasRef.current;
+
+    // Ensure canvas is still valid
+    if (!canvas.getContext()) return;
+
+    const product = availableProducts.find((p) => p.id === activeProductId);
+
+    if (!product || !product.images[garmentColor]?.[view]) {
+      console.error("Product image not found");
+      return;
+    }
+
+    try {
+      const imageUrl = product.images[garmentColor][view];
+
+      return new Promise<void>((resolve) => {
+        const img = new Image();
+        img.crossOrigin = "anonymous";
+
+        img.onload = () => {
+          // Check again if canvas is still valid
+          if (!canvas || !isInitializedRef.current || !canvas.getContext()) {
+            resolve();
+            return;
+          }
+
+          try {
+            // Calculate dimensions to prevent texture size issues
+            let width = img.width;
+            let height = img.height;
+            const maxSize = 4096; // Safe maximum texture size
+
+            if (width > maxSize || height > maxSize) {
+              const ratio = Math.min(maxSize / width, maxSize / height);
+              width *= ratio;
+              height *= ratio;
+            }
+
+            const fabricImage = new fabric.Image(img, {
+              selectable: false,
+              evented: false,
+              left: 0,
+              top: 0,
+              width: width,
+              height: height,
+            });
+
+            if (mockupRef.current) {
+              canvas.remove(mockupRef.current);
+            }
+
+            mockupRef.current = fabricImage;
+
+            // Calculate scale to fit canvas
+            const scaleX = canvas.width! / width;
+            const scaleY = canvas.height! / height;
+            const scale = Math.min(scaleX, scaleY);
+
+            fabricImage.scale(scale);
+
+            // Apply color and center the mockup
+            applyColorToMockup(fabricImage, garmentColor);
+            fabricImage.center();
+
+            canvas.add(fabricImage);
+            canvas.sendToBack(fabricImage);
+            canvas.requestRenderAll();
+
+            // After mockup is loaded, ensure designs are visible
+            setTimeout(() => {
+              updateCanvasObjects();
+            }, 100);
+
+            resolve();
+          } catch (error) {
+            console.error("Error setting up fabric image:", error);
+          }
+
+          resolve();
+        };
+
+        img.onerror = () => {
+          console.error("Error loading image:", imageUrl);
+          resolve();
+        };
+
+        const corsUrl = new URL(imageUrl);
+        corsUrl.searchParams.append("t", Date.now().toString());
+        img.src = corsUrl.toString();
+      });
+    } catch (error) {
+      console.error("Error loading mockup:", error);
+    }
+  };
+
+  const calculateDesignScale = (
+    designWidth: number,
+    designHeight: number,
+    areaConstraints: any
+  ) => {
+    // Get the maximum allowed dimensions
+    const maxWidth = areaConstraints.width;
+    const maxHeight = areaConstraints.height;
+
+    // Calculate scale ratios
+    const widthRatio = maxWidth / designWidth;
+    const heightRatio = maxHeight / designHeight;
+
+    // Use the smaller ratio to ensure design fits within constraints
+    // Multiply by 0.8 to give some padding
+    return 0.2;
+  };
+
+  const loadDesignImage = (design: Design, canvas: fabric.Canvas) => {
+    return new Promise<fabric.Image>((resolve, reject) => {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+
+      img.onload = () => {
+        if (!canvas) {
+          reject(new Error("Canvas not available"));
+          return;
+        }
+
+        try {
+          // Get product category from your store
+          const productType =
+            availableProducts
+              .find((p) => p.id === activeProductId)
+              ?.category.toUpperCase() || "TSHIRT";
+          const areaConstraints = DESIGN_AREAS[productType][activeView];
+
+          // Calculate appropriate scale
+          const initialScale = calculateDesignScale(
+            img.width,
+            img.height,
+            areaConstraints
+          );
+
+          // Calculate centered position
+          const centerX = areaConstraints.left + areaConstraints.width / 2;
+          const centerY = areaConstraints.top + areaConstraints.height / 2;
+
+          const fabricImage = new fabric.Image(img, {
+            left: design.transform.position.x || centerX,
+            top: design.transform.position.y || centerY,
+            scaleX: design.transform.scale || initialScale,
+            scaleY: design.transform.scale || initialScale,
+            angle: design.transform.rotation,
+            visible: design.visible !== false,
+            selectable: !design.locked,
+            evented: !design.locked,
+            originX: "center",
+            originY: "center",
+            opacity: design.opacity || 1,
+          });
+
+          resolve(fabricImage);
+        } catch (error) {
+          reject(error);
+        }
+      };
+
+      img.onerror = () => reject(new Error("Failed to load design image"));
+
+      const corsUrl = new URL(design.imageUrl);
+      corsUrl.searchParams.append("t", Date.now().toString());
+      img.src = corsUrl.toString();
+    });
   };
 
   const applyCurvatureToObject = (
@@ -267,7 +380,6 @@ export const useCanvas = () => {
   };
 
   const setupCanvasEventHandlers = (canvas: fabric.Canvas) => {
-    // Selection events
     canvas.on("selection:created", (e) => {
       if (isModifyingRef.current) return;
       const selectedObject = e.selected?.[0];
@@ -283,32 +395,16 @@ export const useCanvas = () => {
     canvas.on("selection:cleared", () => {
       if (!isModifyingRef.current) {
         setActiveDesign(null);
-        // Ensure all designs remain visible after deselection
-        designsByView[activeView].forEach((design) => {
-          const obj = designRefsMap.current.get(design.id);
-          if (obj) {
-            obj.set({
-              opacity: design.opacity || 1,
-              visible: design.visible !== false,
-            });
-          }
-        });
         canvas.renderAll();
       }
     });
 
-    // Object modification events
     canvas.on("object:modified", (e) => {
-      const obj = e.target as fabric.Image;
-      handleObjectModification(obj);
+      handleObjectModification(e.target as fabric.Image);
     });
 
-    // Real-time transform events
     const handleTransform = (e: fabric.IEvent) => {
-      const obj = e.target as fabric.Image;
-      if (obj) {
-        handleObjectModification(obj);
-      }
+      handleObjectModification(e.target as fabric.Image);
     };
 
     canvas.on("object:scaling", handleTransform);
@@ -316,50 +412,7 @@ export const useCanvas = () => {
     canvas.on("object:moving", handleTransform);
   };
 
-  const renderView = async (view: ViewType): Promise<void> => {
-    return new Promise((resolve, reject) => {
-      try {
-        if (!canvasRef.current) {
-          reject(new Error("Canvas not initialized"));
-          return;
-        }
-
-        const canvas = canvasRef.current;
-
-        // Store current view state
-        const currentView = activeView;
-        const currentDesigns = [...designsByView[currentView]];
-
-        // Switch to requested view
-        loadMockup(view, garmentType);
-
-        // Wait for mockup to load
-        setTimeout(() => {
-          try {
-            // Update canvas with designs for this view
-            updateCanvasObjects();
-
-            // Render the canvas
-            canvas.renderAll();
-
-            // Restore original view
-            loadMockup(currentView, garmentType);
-            setTimeout(() => {
-              updateCanvasObjects();
-              canvas.renderAll();
-              resolve();
-            }, 100);
-          } catch (error) {
-            reject(error);
-          }
-        }, 100);
-      } catch (error) {
-        reject(error);
-      }
-    });
-  };
-
-  const updateCanvasObjects = () => {
+  const updateCanvasObjects = async () => {
     if (
       !canvasRef.current ||
       !isInitializedRef.current ||
@@ -369,39 +422,26 @@ export const useCanvas = () => {
 
     const canvas = canvasRef.current;
     const currentDesigns = designsByView[activeView];
-
-    // Sort designs by zIndex (if available) or keep original order
     const sortedDesigns = [...currentDesigns].sort(
       (a, b) => (a.zIndex || 0) - (b.zIndex || 0)
     );
 
     isModifyingRef.current = true;
     try {
-      // Remove deleted designs
-      const designIdsInStore = new Set(currentDesigns.map((d) => d.id));
-      const objectsToRemove: fabric.Image[] = [];
-
-      designRefsMap.current.forEach((fabricObj, designId) => {
-        if (!designIdsInStore.has(designId)) {
-          objectsToRemove.push(fabricObj);
-          designRefsMap.current.delete(designId);
+      // Handle removed designs
+      const activeDesignIds = new Set(currentDesigns.map((d) => d.id));
+      designRefsMap.current.forEach((obj, id) => {
+        if (!activeDesignIds.has(id)) {
+          canvas.remove(obj);
+          designRefsMap.current.delete(id);
         }
       });
 
-      objectsToRemove.forEach((obj) => {
-        canvas.remove(obj);
-      });
-      // Ensure mockup stays at the bottom
-      if (mockupRef.current) {
-        canvas.sendToBack(mockupRef.current);
-      }
-
-      // Update or add designs with blend modes
-      sortedDesigns.forEach((design, index) => {
+      // Update/add designs
+      for (const design of sortedDesigns) {
         const existingObject = designRefsMap.current.get(design.id);
 
         if (existingObject) {
-          // Update existing design
           existingObject.set({
             left: design.transform.position.x,
             top: design.transform.position.y,
@@ -416,192 +456,117 @@ export const useCanvas = () => {
             opacity: design.opacity || 1,
           });
 
-          // Apply curvature filter
           applyCurvatureToObject(existingObject, design);
-
           applyBlendMode(existingObject, design);
           existingObject.setCoords();
-
-          // Ensure design stays above mockup
-          existingObject.bringToFront();
-          canvas.bringForward(existingObject, true);
+          canvas.bringToFront(existingObject);
         } else {
-          // Add new design
-          fabric.Image.fromURL(design.imageUrl, (img) => {
-            if (!canvas || !isInitializedRef.current) return;
+          try {
+            const fabricImage = await loadDesignImage(design, canvas);
 
-            img.set({
-              left: design.transform.position.x,
-              top: design.transform.position.y,
-              scaleX: design.transform.scale,
-              scaleY: design.transform.scale,
-              angle: design.transform.rotation,
-              visible: design.visible !== false,
-              selectable: !design.locked,
-              evented: !design.locked,
-              originX: "center",
-              originY: "center",
-              opacity: design.opacity || 1,
-            });
-
-            // Apply curvature filter
-            applyCurvatureToObject(img, design);
-
-            applyBlendMode(img, design);
-            designRefsMap.current.set(design.id, img);
-            canvas.add(img);
-            canvas.moveTo(img, index);
-
-            // Ensure new design stays above mockup
-            img.bringToFront();
-            canvas.bringForward(img, true);
+            applyCurvatureToObject(fabricImage, design);
+            applyBlendMode(fabricImage, design);
+            designRefsMap.current.set(design.id, fabricImage);
+            canvas.add(fabricImage);
+            canvas.bringToFront(fabricImage);
 
             if (design.id === activeDesignId) {
-              canvas.setActiveObject(img);
+              canvas.setActiveObject(fabricImage);
             }
-
-            img.setCoords();
-          });
+          } catch (error) {
+            console.error("Error loading design:", error);
+          }
         }
-      });
+      }
 
-      canvas.renderAll();
+      canvas.requestRenderAll();
     } finally {
       isModifyingRef.current = false;
     }
   };
 
-  const loadMockup = (view: ViewType, type: string) => {
-    const canvas = canvasRef.current;
-    if (!canvas || !isInitializedRef.current) return;
+  const cleanupCanvas = () => {
+    try {
+      if (canvasRef.current && isInitializedRef.current) {
+        const canvas = canvasRef.current;
 
-    fabric.Image.fromURL(MOCKUP_IMAGES[type][view], (img) => {
-      if (!canvas || !isInitializedRef.current) return;
-
-      try {
-        // Safely remove old mockup
-        if (mockupRef.current) {
-          canvas.remove(mockupRef.current);
-          mockupRef.current = null;
-        }
-
-        // Setup new mockup
-        mockupRef.current = img;
-        img.set({
-          selectable: false,
-          evented: false,
-          left: 0,
-          top: 0,
-          scaleX: canvas.width! / img.width!,
-          scaleY: canvas.height! / img.height!,
+        // Remove all objects first
+        canvas.getObjects().forEach((obj) => {
+          canvas.remove(obj);
         });
 
-        applyGarmentColor(img, garmentColor);
+        // Clear references
+        mockupRef.current = null;
+        designRefsMap.current.clear();
 
-        // Safely update canvas
-        const objects = [...canvas.getObjects()];
-        objects.forEach((obj) => canvas.remove(obj));
-
-        canvas.add(img);
-        canvas.sendToBack(img);
-        img.moveTo(0);
-
-        // Re-add all designs
-        designsByView[activeView].forEach((design) => {
-          const designObject = designRefsMap.current.get(design.id);
-          if (designObject) {
-            canvas.add(designObject);
-            designObject.bringToFront();
-            if (design.id === activeDesignId) {
-              canvas.setActiveObject(designObject);
-            }
-          }
-        });
-
-        canvas.renderAll();
-      } catch (error) {
-        console.error("Error updating mockup:", error);
+        // Dispose canvas
+        canvas.dispose();
+        canvasRef.current = null;
       }
-    });
+    } catch (error) {
+      console.error("Error cleaning up canvas:", error);
+    } finally {
+      isInitializedRef.current = false;
+    }
   };
 
-  // Initialize canvas
   const initCanvas = (htmlCanvas: HTMLCanvasElement) => {
-    if (canvasRef.current || !htmlCanvas) return;
+    if (canvasRef.current || !htmlCanvas || !htmlCanvas.getContext("2d"))
+      return;
 
     try {
+      fabric.Object.prototype.transparentCorners = false;
+      fabric.Object.prototype.cornerColor = "#00a0f5";
+      fabric.Object.prototype.cornerStyle = "circle";
+      fabric.Object.prototype.padding = 10;
+
       const canvas = new fabric.Canvas(htmlCanvas, {
         width: 500,
         height: 600,
         backgroundColor: "#f5f5f5",
+        preserveObjectStacking: true,
+        renderOnAddRemove: true,
       });
 
       canvasRef.current = canvas;
       isInitializedRef.current = true;
-      previousViewRef.current = activeView;
-
       setupCanvasEventHandlers(canvas);
-      loadMockup(activeView, garmentType);
+      loadMockup(activeView);
     } catch (error) {
       console.error("Error initializing canvas:", error);
+      cleanupCanvas();
     }
   };
 
-  // Effects
-
-  // Handle view changes
+  // Effect for product/color/view changes
   useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas || previousViewRef.current === activeView) return;
-
-    try {
-      // Save the new view reference first
-      previousViewRef.current = activeView;
-
-      // Clear design refs for new view
-      designRefsMap.current = new Map();
-
-      // Load the new mockup
-      loadMockup(activeView, garmentType);
-    } catch (error) {
-      console.error("Error switching views:", error);
+    if (isInitializedRef.current) {
+      loadMockup(activeView);
     }
-  }, [activeView, garmentType]);
+  }, [activeProductId, garmentColor, activeView]);
 
-  // Sync designs
+  // Effect for design changes
   useEffect(() => {
     if (!isModifyingRef.current) {
-      try {
-        updateCanvasObjects();
-      } catch (error) {
-        console.error("Error updating canvas objects:", error);
-      }
+      updateCanvasObjects();
     }
   }, [designsByView, activeView]);
 
-  // Cleanup
+  // Cleanup effect
   useEffect(() => {
     return () => {
-      const canvas = canvasRef.current;
-      if (canvas) {
-        try {
-          canvas.getObjects().forEach((obj) => canvas.remove(obj));
-          canvas.dispose();
-          canvasRef.current = null;
-          mockupRef.current = null;
-          designRefsMap.current.clear();
-          isInitializedRef.current = false;
-        } catch (error) {
-          console.error("Error cleaning up canvas:", error);
-        }
-      }
+      cleanupCanvas();
     };
   }, []);
 
   return {
     initCanvas,
-    renderView,
-    cleanupCanvas: () => {},
+    renderView: async (view: ViewType) => {
+      if (isInitializedRef.current) {
+        await loadMockup(view);
+      }
+    },
+    cleanupCanvas,
     canvasRef,
   };
 };
