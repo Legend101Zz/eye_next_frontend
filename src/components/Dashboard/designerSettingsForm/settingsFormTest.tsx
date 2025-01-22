@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { IoMdSettings } from "react-icons/io";
 import { useToast } from "@/components/ui/use-toast";
+import Link from "next/link";
 import {
 	updateDesignerSettings,
 	getDesignerSettings,
@@ -39,7 +40,7 @@ interface DesignerSettings {
 const defaultSettings: DesignerSettings = {
 	isPrivate: false,
 	showDesigns: true,
-	designIds: [], // Important: Include this
+	designIds: [],
 	showFollowers: true,
 	showFullName: true,
 	showPhone: true,
@@ -51,9 +52,7 @@ const defaultSettings: DesignerSettings = {
 	portfolioLink2: ""
 };
 
-
 const SettingsSheet = () => {
-
 	// State
 	const [loading, setLoading] = useState(true);
 	const [saving, setSaving] = useState(false);
@@ -119,9 +118,27 @@ const SettingsSheet = () => {
 			setSaving(true);
 			await updateDesignerSettings(designerId, newSettings);
 
+			// Get the base URL from window.location or use a default
+			const baseUrl = typeof window !== 'undefined'
+				? `${window.location.protocol}//${window.location.host}`
+				: 'http://localhost:3000';
+
+			const profileUrl = `${baseUrl}/designer/${designerId}`;
+
 			toast({
-				title: "Success",
-				description: "Settings updated successfully",
+				title: "Settings updated successfully!",
+				description: (
+					<div className="flex flex-col gap-2 mt-2">
+						<p>Your profile has been updated.</p>
+						<Link
+							href={profileUrl}
+							className="text-accent hover:text-accent/80 transition-colors duration-200 underline"
+							target="_blank"
+						>
+							Click here to see how your live profile looks
+						</Link>
+					</div>
+				),
 			});
 
 			// Update local settings state
@@ -138,6 +155,7 @@ const SettingsSheet = () => {
 		}
 	};
 
+	// Rest of the component remains the same...
 	return (
 		<Sheet>
 			<SheetTrigger asChild>
@@ -146,8 +164,8 @@ const SettingsSheet = () => {
 					whileTap={{ scale: 0.95 }}
 				>
 					<Button className="px-4 py-2 text-white flex gap-3 items-center rounded-full
-								  bg-gradient-to-r from-accent via-accent to-accent/80
-								  hover:opacity-90 transition-all duration-300">
+                bg-gradient-to-r from-accent via-accent to-accent/80
+                hover:opacity-90 transition-all duration-300">
 						<span className="font-medium">Edit Profile</span>
 						<motion.div
 							animate={{ rotate: [0, 180, 360] }}
@@ -161,7 +179,7 @@ const SettingsSheet = () => {
 
 			<SheetContent
 				className="bg-gradient-to-b from-black to-black/95 text-white/90 
-						   border-l border-accent/20 overflow-y-auto backdrop-blur-xl"
+                 border-l border-accent/20 overflow-y-auto backdrop-blur-xl"
 				onInteractOutside={(e) => {
 					if (saving) e.preventDefault();
 				}}
@@ -233,11 +251,11 @@ const SettingsSheet = () => {
 									animate={{ opacity: 1 }}
 									exit={{ opacity: 0 }}
 									className="absolute inset-0 bg-black/50 backdrop-blur-sm
-								  flex items-center justify-center"
+                flex items-center justify-center"
 								>
 									<div className="flex flex-col items-center gap-4">
 										<div className="size-8 border-3 border-accent border-t-transparent
-										rounded-full animate-spin" />
+                    rounded-full animate-spin" />
 										<p className="text-accent">Saving changes...</p>
 									</div>
 								</motion.div>

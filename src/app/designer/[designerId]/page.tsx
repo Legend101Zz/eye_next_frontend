@@ -23,6 +23,7 @@ import {
     TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from '@/lib/utils';
+import { toast } from '@/components/ui/use-toast';
 
 
 const LoadingState = () => {
@@ -279,123 +280,102 @@ const ExclamationIcon = ({ className }: { className?: string }) => (
     </svg>
 );
 
-const DesignerPublicProfile = ({ params }: { params: { designerId: string } }) => {
+
+
+const DesignerProfile = ({ params }) => {
     const { isPrivate, data, designs, loading, error } = usePublicProfile(params.designerId);
-    const [selectedDesign, setSelectedDesign] = useState<any>(null);
-    const [scrolled, setScrolled] = useState(false);
+    const [selectedDesign, setSelectedDesign] = useState(null);
     const [activeFilter, setActiveFilter] = useState('All Designs');
-    const [totalDesigns] = useState(designs.length * 2); // For demo purposes
 
-    // Filter designs based on active filter
-    const filteredDesigns = useMemo(() => {
-        if (activeFilter === 'All Designs') return designs;
-        if (activeFilter === 'Popular') return designs.filter(d => d.likes > 50);
-        if (activeFilter === 'Recent') return designs.filter(d =>
-            new Date(d.createdAt) > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
-        );
-        return designs.filter(d => d.category.toLowerCase() === activeFilter.toLowerCase());
-    }, [designs, activeFilter]);
+    if (loading) return <LoadingState />;
+    if (error) return <ErrorState error={error} />;
+    if (isPrivate) return <PrivateProfileState designerName={data?.name || 'Designer'} />;
 
-    const handleLoadMore = async () => {
-        // Implement your load more logic here
-        console.log("Loading more designs...");
-    };
+    const handleShare = async (design = null) => {
+        console.log('Sharing:', design ? 'Design' : 'Profile');
 
-    // Handle scroll effects
-    useEffect(() => {
-        const handleScroll = () => {
-            setScrolled(window.scrollY > 50);
-        };
-        window.addEventListener('scroll', handleScroll);
-        return () => window.removeEventListener('scroll', handleScroll);
-    }, []);
-
-    const handleShare = async (design?: any) => {
         try {
+            // Get base URL - replace localhost with production URL in deployment
+            const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || window.location.origin;
+
+            // Construct designer profile URL
+            const designerProfileUrl = `${baseUrl}/designer/${params.designerId}`;
+
+            // Construct share data
             const shareData = {
                 title: design
-                    ? `${design.title} by ${data?.name}`
-                    : `${data?.name}'s Designer Profile`,
+                    ? `${design.title} by ${data?.name} on Deauth`
+                    : `${data?.name}'s Designer Profile on Deauth`,
                 text: design
-                    ? `Check out this amazing design by ${data?.name} on Deauth!`
-                    : `Check out ${data?.name}'s amazing designs on Deauth!`,
-                url: window.location.href + (design ? `?design=${design._id}` : ''),
+                    ? `Check out this amazing design "${design.title}" by ${data?.name}`
+                    : `Discover amazing designs by ${data?.name} on Deauth`,
+                url: design
+                    ? `${designerProfileUrl}?design=${design._id}`
+                    : designerProfileUrl
             };
 
+            // Add image if available
+            const imageUrl = design?.designImages?.[0]?.url || data?.profileImage || '/deauthCircleIcon.png';
+
+            // Check if Web Share API Level 2 is available (supports sharing files)
+            if (navigator.canShare && navigator.canShare({ files: [] })) {
+                try {
+                    // Fetch and share image
+                    const imageResponse = await fetch(imageUrl);
+                    const imageBlob = await imageResponse.blob();
+                    const imageFile = new File([imageBlob], 'deauth-share.png', { type: 'image/png' });
+
+                    await navigator.share({
+                        ...shareData,
+                        files: [imageFile]
+                    });
+                    return;
+                } catch (error) {
+                    console.log('Image share failed, falling back to URL share');
+                    // Fall through to regular share
+                }
+            }
+
+            // Try regular Web Share API
             if (navigator.share) {
                 await navigator.share(shareData);
-            } else {
-                await navigator.clipboard.writeText(shareData.url);
-                // Show toast notification that URL was copied
+                return;
             }
+
+            // Fallback to clipboard
+            await navigator.clipboard.writeText(shareData.url);
+
+            // Show success toast
+            toast({
+                title: "Link Copied!",
+                description: "Share link has been copied to your clipboard",
+                duration: 3000,
+            });
+
         } catch (err) {
             console.error('Error sharing:', err);
+
+            // Show error toast
+            toast({
+                title: "Sharing Failed",
+                description: "There was an error sharing this content",
+                variant: "destructive",
+                duration: 3000,
+            });
         }
     };
 
-    if (loading) return <LoadingState />;
-    if (isPrivate) return <PrivateProfileState designerName={data?.name || 'This designer'} />;
-    if (error) return <ErrorState error={error} />;
+
+
 
     return (
-        <div className="min-h-screen bg-background">
-            {/* Sticky Header */}
-            <motion.div
-                className={cn(
-                    "fixed top-0 left-0 right-0 z-50 transition-all duration-300",
-                    scrolled ? "bg-black/90 backdrop-blur-md shadow-lg" : "bg-transparent"
-                )}
-                initial={{ y: -100 }}
-                animate={{ y: 0 }}
-            >
-                <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
-                    <motion.div
-                        className="flex items-center gap-4"
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                    >
-                        {data?.profileImage && (
-                            <Image
-                                src={data.profileImage}
-                                alt="Profile"
-                                width={40}
-                                height={40}
-                                className="rounded-full"
-                            />
-                        )}
-                        <h1 className="text-xl font-heading1 text-white">{data?.name}</h1>
-                    </motion.div>
-
-                    <motion.div
-                        className="flex items-center gap-4"
-                        initial={{ opacity: 0, x: 20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                    >
-                        <TooltipProvider>
-                            <Tooltip>
-                                <TooltipTrigger asChild>
-                                    <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="rounded-full bg-white/10 hover:bg-white/20"
-                                        onClick={() => handleShare()}
-                                    >
-                                        <Share1Icon className="w-5 h-5 text-white" />
-                                    </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>Share Profile</TooltipContent>
-                            </Tooltip>
-                        </TooltipProvider>
-                    </motion.div>
-                </div>
-            </motion.div>
-
+        <div className="min-h-screen bg-base-200">
             {/* Hero Section */}
-            <div className="relative min-h-[90vh] flex items-end pb-32">
-                {/* Background Image with Enhanced Overlay */}
-                <div className="absolute inset-0">
+            <div className="relative bg-gradient-to-b from-base-300 to-base-200">
+                {/* Cover Section */}
+                <div className="relative h-72 md:h-96">
                     {data?.coverImage ? (
-                        <>
+                        <div className="relative h-full">
                             <Image
                                 src={data.coverImage}
                                 alt="Cover"
@@ -403,306 +383,230 @@ const DesignerPublicProfile = ({ params }: { params: { designerId: string } }) =
                                 className="object-cover"
                                 priority
                             />
-                            {/* Multiple gradient overlays for better contrast */}
-                            <div className="absolute inset-0 bg-gradient-to-t from-black via-black/80 to-transparent" />
-                            <div className="absolute inset-0 bg-gradient-to-r from-accent/30 via-transparent to-black/50" />
-                        </>
+                            <div className="absolute inset-0 bg-gradient-to-b from-transparent via-base-300/50 to-base-300" />
+                        </div>
                     ) : (
-                        <div className="absolute inset-0 bg-gradient-to-br from-accent via-black to-background" />
+                        <div className="absolute inset-0 bg-gradient-to-br from-accent/5 via-base-300 to-base-200" />
                     )}
-
-                    {/* Animated pattern overlay */}
-                    <div className="absolute inset-0 opacity-30 mix-blend-overlay">
-                        <div className="absolute inset-0" style={{
-                            backgroundImage: 'url("data:image/svg+xml,%3Csvg width="60" height="60" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg"%3E%3Cg fill="none" fill-rule="evenodd"%3E%3Cg fill="%23ffffff" fill-opacity="0.4"%3E%3Cpath d="M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z"/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")',
-                        }} />
-                    </div>
                 </div>
 
-                {/* Profile Content */}
-                <motion.div
-                    className="relative max-w-7xl mx-auto px-4 w-full"
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                >
-                    <div className="flex flex-col md:flex-row items-start gap-12">
-                        {/* Profile Image with Border Effects */}
-                        {data?.profileImage && (
+                {/* Profile Section */}
+                <div className="max-w-7xl mx-auto px-4 -mt-32 relative z-10">
+                    <motion.div
+                        className="bg-base-300/80 backdrop-blur-xl rounded-2xl p-8 border border-white/10 shadow-2xl"
+                        initial={{ y: 50, opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                    >
+                        {/* Profile Header */}
+                        <div className="flex flex-col md:flex-row gap-8">
+                            {/* Profile Image with Glow Effect */}
                             <motion.div
+                                initial={{ scale: 0.8, opacity: 0 }}
+                                animate={{ scale: 1, opacity: 1 }}
                                 className="relative group"
-                                whileHover={{ scale: 1.02 }}
                             >
-                                <motion.div
-                                    className="absolute -inset-1 bg-gradient-to-r from-accent via-white to-accent rounded-2xl blur opacity-30 group-hover:opacity-60 transition duration-1000"
-                                    animate={{
-                                        backgroundPosition: ['0% 0%', '100% 100%'],
-                                    }}
-                                    transition={{
-                                        duration: 8,
-                                        repeat: Infinity,
-                                        repeatType: 'reverse',
-                                    }}
-                                />
-                                <div className="relative w-48 h-48 rounded-2xl overflow-hidden">
+                                <div className="absolute inset-0 rounded-full bg-gradient-to-r from-accent to-white opacity-20 blur-xl group-hover:opacity-30 transition-opacity duration-700" />
+                                <div className="relative w-40 h-40 md:w-48 md:h-48 rounded-full overflow-hidden border-4 border-white/10">
                                     <Image
-                                        src={data.profileImage}
-                                        alt="Profile"
+                                        src={data?.profileImage || '/deauthCircleIcon.png'}
+                                        alt={data?.name}
                                         fill
                                         className="object-cover"
                                     />
                                 </div>
                             </motion.div>
-                        )}
 
-                        {/* Profile Info with Enhanced Typography and Layout */}
-                        <div className="flex-1">
-                            <div className="backdrop-blur-sm bg-black/20 p-8 rounded-2xl border border-white/10">
-                                <motion.div className="flex items-center gap-4 mb-6">
-                                    <motion.h1
-                                        className="text-6xl font-heading1 text-white"
-                                        initial={{ opacity: 0, y: 20 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                    >
-                                        {data?.name}
-                                    </motion.h1>
-                                    <motion.div
-                                        initial={{ opacity: 0, scale: 0 }}
-                                        animate={{ opacity: 1, scale: 1 }}
-                                        transition={{ delay: 0.3 }}
-                                    >
-                                        <span className="px-4 py-1 bg-accent/20 rounded-full text-accent text-sm">
-                                            Deauth Verified
-                                        </span>
-                                    </motion.div>
-                                </motion.div>
-
-                                {data?.description && (
-                                    <motion.p
-                                        className="text-xl text-gray-200 mb-8 leading-relaxed"
-                                        initial={{ opacity: 0, y: 20 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        transition={{ delay: 0.1 }}
-                                    >
-                                        {data.description}
-                                    </motion.p>
-                                )}
-
-                                {/* Enhanced Stats Display */}
-                                {data?.followers !== null && (
-                                    <motion.div
-                                        className="flex gap-8 mb-8"
-                                        initial={{ opacity: 0, y: 20 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        transition={{ delay: 0.2 }}
-                                    >
-                                        <motion.div
-                                            className="bg-white/5 backdrop-blur-sm px-6 py-4 rounded-xl"
-                                            whileHover={{ y: -2 }}
-                                        >
-                                            <span className="block text-3xl font-bold text-white mb-1">
-                                                {data.followers}
+                            {/* Profile Info */}
+                            <div className="flex-1 text-center md:text-left">
+                                <div className="space-y-6">
+                                    {/* Name and Badges */}
+                                    <div className="flex flex-col md:flex-row items-center gap-4">
+                                        <h1 className="text-4xl md:text-5xl font-heading1 text-white">{data?.name}</h1>
+                                        <div className="flex gap-2">
+                                            <span className="px-3 py-1 bg-accent text-black text-sm rounded-full font-medium">
+                                                Verified
                                             </span>
-                                            <span className="text-gray-400 text-sm">Followers</span>
-                                        </motion.div>
-                                        <motion.div
-                                            className="bg-white/5 backdrop-blur-sm px-6 py-4 rounded-xl"
-                                            whileHover={{ y: -2 }}
-                                        >
-                                            <span className="block text-3xl font-bold text-white mb-1">
-                                                {designs.length}
+                                            <span className="px-3 py-1 bg-white/10 text-white/80 text-sm rounded-full font-medium">
+                                                Pro Designer
                                             </span>
-                                            <span className="text-gray-400 text-sm">Designs</span>
-                                        </motion.div>
-                                        <motion.div
-                                            className="bg-white/5 backdrop-blur-sm px-6 py-4 rounded-xl"
-                                            whileHover={{ y: -2 }}
-                                        >
-                                            <span className="block text-3xl font-bold text-white mb-1">
-                                                {data.totalSales || 0}
-                                            </span>
-                                            <span className="text-gray-400 text-sm">Sales</span>
-                                        </motion.div>
-                                    </motion.div>
-                                )}
-
-                                {/* Social Links with Enhanced Visual */}
-                                {data?.socialMedia && data.socialMedia.length > 0 && (
-                                    <div className="relative">
-                                        <motion.div
-                                            className="absolute -inset-1 bg-gradient-to-r from-accent/20 to-white/20 rounded-xl blur-lg"
-                                            animate={{
-                                                opacity: [0.5, 0.8, 0.5],
-                                            }}
-                                            transition={{
-                                                duration: 3,
-                                                repeat: Infinity,
-                                            }}
-                                        />
-                                        <div className="relative bg-black/20 backdrop-blur-sm p-4 rounded-xl">
-                                            <SocialBar links={data.socialMedia} />
                                         </div>
                                     </div>
-                                )}
+
+                                    {/* Action Buttons */}
+                                    <div className="flex flex-wrap gap-4 justify-center md:justify-start">
+                                        <Button
+                                            size="lg"
+                                            className="bg-accent hover:bg-accent/90 text-black font-heading1 rounded-full px-8"
+                                        >
+                                            Follow Artist
+                                        </Button>
+                                        <Button
+                                            variant="outline"
+                                            size="lg"
+                                            className="rounded-full bg-white hover:bg-base-200 font-heading1"
+                                            onClick={() => handleShare()}
+                                        >
+                                            Share Profile
+                                        </Button>
+                                    </div>
+
+                                    {/* Stats Cards */}
+                                    <div className="grid grid-cols-3 gap-4 max-w-2xl">
+                                        {[
+                                            { label: 'Designs', value: designs.length },
+                                            { label: 'Followers', value: data?.followers || 0 },
+                                            { label: 'Sales', value: data?.totalSales || 0 }
+                                        ].map((stat) => (
+                                            <motion.div
+                                                key={stat.label}
+                                                className="bg-black/20 backdrop-blur-sm rounded-xl p-4 border border-white/5"
+                                                whileHover={{ y: -2 }}
+                                            >
+                                                <span className="block text-3xl font-bold text-white mb-1">
+                                                    {stat.value.toLocaleString()}
+                                                </span>
+                                                <span className="text-white/60 text-sm">{stat.label}</span>
+                                            </motion.div>
+                                        ))}
+                                    </div>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                </motion.div>
+
+                        {/* Bio Section with Gradient Border */}
+                        {data?.description && (
+                            <div className="mt-8 relative rounded-xl overflow-hidden">
+                                <div className="absolute inset-0 bg-gradient-to-r from-accent/20 via-white/5 to-accent/20" />
+                                <div className="relative bg-black/20 backdrop-blur-sm p-6 rounded-xl">
+                                    <p className="text-white/80 text-lg leading-relaxed">{data.description}</p>
+                                </div>
+                            </div>
+                        )}
+                    </motion.div>
+                </div>
             </div>
 
             {/* Designs Section */}
-            <div className="relative py-24">
-                <motion.div
-                    className="max-w-7xl mx-auto px-4"
-                    initial={{ opacity: 0, y: 20 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true }}
-                >
+            <div className="py-20">
+                <div className="max-w-7xl mx-auto px-4">
                     {/* Section Header */}
-                    <div className="flex flex-col items-center mb-16">
-                        <div className="flex items-center justify-center gap-4 mb-8">
-                            <motion.div
-                                className="h-[2px] w-12 bg-accent"
-                                initial={{ width: 0 }}
-                                animate={{ width: 48 }}
-                                transition={{ delay: 0.5 }}
-                            />
-                            <motion.h2
-                                className="text-5xl font-heading1 text-black"
-                                initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                            >
-                                Featured Designs
-                            </motion.h2>
-                            <motion.div
-                                className="h-[2px] w-12 bg-accent"
-                                initial={{ width: 0 }}
-                                animate={{ width: 48 }}
-                                transition={{ delay: 0.5 }}
-                            />
-                        </div>
-                        <motion.p
-                            className="text-gray-400 text-xl max-w-2xl text-center"
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: 0.1 }}
-                        >
-                            Explore a collection of unique designs crafted with passion and creativity
-                        </motion.p>
-                    </div>
-
-                    {/* Filters */}
                     <motion.div
-                        className="flex flex-wrap justify-center gap-4 mb-12"
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.2 }}
-                    >
-                        {[
-                            { name: 'All Designs', count: designs.length },
-                            { name: 'Popular', count: designs.filter(d => d.likes > 50).length },
-                            { name: 'Recent', count: designs.filter(d => new Date(d.createdAt) > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)).length },
-                            { name: 'T-Shirts', count: designs.filter(d => d.category === 'tshirt').length },
-                            { name: 'Hoodies', count: designs.filter(d => d.category === 'hoodie').length },
-                        ].map((filter, index) => (
-                            <motion.button
-                                key={filter.name}
-                                className={`px-6 py-2 rounded-full text-sm font-medium transition-all duration-300
-                        ${activeFilter === filter.name
-                                        ? 'bg-accent text-white'
-                                        : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'
-                                    }`}
-                                whileHover={{ scale: 1.05 }}
-                                whileTap={{ scale: 0.95 }}
-                                onClick={() => setActiveFilter(filter.name)}
-                            >
-                                {filter.name}
-                                <span className="ml-2 opacity-60">({filter.count})</span>
-                            </motion.button>
-                        ))}
-                    </motion.div>
-
-                    {/* Grid Layout with Masonry Effect */}
-                    <div className="relative">
-                        <DesignGrid
-                            designs={filteredDesigns}
-                            onDesignClick={(design) => setSelectedDesign(design)}
-                        />
-
-                        {/* Background Elements */}
-                        <div className="absolute inset-0 pointer-events-none">
-                            <motion.div
-                                className="absolute top-0 right-0 w-96 h-96 bg-accent/5 rounded-full filter blur-3xl"
-                                animate={{
-                                    scale: [1, 1.2, 1],
-                                    opacity: [0.3, 0.5, 0.3],
-                                }}
-                                transition={{
-                                    duration: 8,
-                                    repeat: Infinity,
-                                }}
-                            />
-                            <motion.div
-                                className="absolute bottom-0 left-0 w-96 h-96 bg-accent/5 rounded-full filter blur-3xl"
-                                animate={{
-                                    scale: [1.2, 1, 1.2],
-                                    opacity: [0.5, 0.3, 0.5],
-                                }}
-                                transition={{
-                                    duration: 8,
-                                    repeat: Infinity,
-                                }}
-                            />
-                        </div>
-                    </div>
-
-                    {/* Load More Section */}
-                    <motion.div
-                        className="mt-16 text-center"
+                        className="text-center mb-16"
                         initial={{ opacity: 0, y: 20 }}
                         whileInView={{ opacity: 1, y: 0 }}
                         viewport={{ once: true }}
                     >
-                        <div className="inline-flex flex-col items-center">
-                            <p className="text-gray-400 mb-4">
-                                Showing {designs.length} out of {totalDesigns} designs
-                            </p>
-                            <div className="w-64 h-2 bg-white/5 rounded-full mb-6 overflow-hidden">
-                                <motion.div
-                                    className="h-full bg-accent"
-                                    initial={{ width: "0%" }}
-                                    animate={{ width: `${(designs.length / totalDesigns) * 100}%` }}
-                                    transition={{ duration: 1, ease: "easeOut" }}
-                                />
-                            </div>
-                            <Button
-                                onClick={handleLoadMore}
-                                disabled={loading}
-                                className="bg-white/5 text-black hover:bg-white/10 rounded-full px-8"
-                            >
-                                {loading ? (
-                                    <motion.div
-                                        className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full"
-                                        animate={{ rotate: 360 }}
-                                        transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                                    />
-                                ) : (
-                                    'Load More Designs'
-                                )}
-                            </Button>
-                        </div>
+                        <h2 className="text-5xl font-heading1 text-white mb-4">Featured Designs</h2>
+                        <div className="w-24 h-1 bg-accent mx-auto rounded-full mb-6" />
+                        <p className="text-white/60 text-xl max-w-2xl mx-auto">
+                            Explore {data?.name}'s unique collection of designs
+                        </p>
                     </motion.div>
-                </motion.div>
+
+                    {/* Design Filters */}
+                    <motion.div
+                        className="flex flex-wrap justify-center gap-3 mb-12"
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                    >
+                        {['All Designs', 'Popular', 'Recent', 'T-Shirts', 'Hoodies'].map((filter) => (
+                            <Button
+                                key={filter}
+                                variant={activeFilter === filter ? 'default' : 'outline'}
+                                size="lg"
+                                className={cn(
+                                    'rounded-full font-medium transition-all duration-300',
+                                    activeFilter === filter
+                                        ? 'bg-accent text-black hover:bg-accent/90'
+                                        : 'bg-base-300/50 text-white/70 hover:bg-base-300/80 hover:text-white'
+                                )}
+                                onClick={() => setActiveFilter(filter)}
+                            >
+                                {filter}
+                            </Button>
+                        ))}
+                    </motion.div>
+
+                    {/* Designs Grid with Enhanced Hover Effects */}
+                    <motion.div
+                        className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"
+                        variants={{
+                            hidden: { opacity: 0 },
+                            show: {
+                                opacity: 1,
+                                transition: { staggerChildren: 0.1 }
+                            }
+                        }}
+                        initial="hidden"
+                        animate="show"
+                    >
+                        {designs.map((design, index) => (
+                            <motion.div
+                                key={design._id}
+                                className="group relative aspect-square rounded-xl overflow-hidden cursor-pointer bg-base-300"
+                                variants={{
+                                    hidden: { opacity: 0, scale: 0.9 },
+                                    show: { opacity: 1, scale: 1 }
+                                }}
+                                whileHover={{ scale: 1.02 }}
+                                onClick={() => setSelectedDesign(design)}
+                            >
+                                <Image
+                                    src={design.designImages[0]?.url || '/placeholder.png'}
+                                    alt={design.title}
+                                    fill
+                                    className="object-cover transition-transform duration-700 group-hover:scale-110"
+                                />
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300">
+                                    <div className="absolute bottom-0 left-0 right-0 p-6">
+                                        <h3 className="text-white font-heading1 text-xl mb-2">
+                                            {design.title}
+                                        </h3>
+                                        <div className="flex gap-2">
+                                            {design.tags?.slice(0, 2).map((tag) => (
+                                                <span
+                                                    key={tag}
+                                                    className="px-3 py-1 bg-white/10 rounded-full text-white/80 text-sm"
+                                                >
+                                                    {tag}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+                            </motion.div>
+                        ))}
+                    </motion.div>
+
+                    {/* Load More Section */}
+                    <motion.div
+                        className="mt-16 text-center"
+                        initial={{ opacity: 0 }}
+                        whileInView={{ opacity: 1 }}
+                        viewport={{ once: true }}
+                    >
+                        <Button
+                            size="lg"
+                            className="bg-accent hover:bg-accent/90 text-black font-heading1 rounded-full px-8"
+                        >
+                            Load More Designs
+                        </Button>
+                    </motion.div>
+                </div>
             </div>
-            {/* Design Detail Sheet */}
-            <DesignDetailSheet
-                design={selectedDesign}
-                onClose={() => setSelectedDesign(null)}
-                onShare={handleShare}
-            />
+
+            {/* Selected Design Modal */}
+            <AnimatePresence>
+                {selectedDesign && (
+                    <DesignDetailSheet
+                        design={selectedDesign}
+                        onClose={() => setSelectedDesign(null)}
+                        onShare={() => handleShare(selectedDesign)}
+                    />
+                )}
+            </AnimatePresence>
         </div>
     );
 };
 
-
-
-export default DesignerPublicProfile;
+export default DesignerProfile;
