@@ -1,32 +1,32 @@
-import { useState, useEffect } from "react";
-
-interface AuthUser {
-  id: string;
-  isDesigner: boolean;
-}
+import { useSession } from "next-auth/react";
+import { useEffect, useState } from "react";
 
 export const useAuth = () => {
-  const [user, setUser] = useState<AuthUser | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { data: session, status } = useSession();
+  const [userId, setUserId] = useState<string | null>(null);
+  const [isDesigner, setIsDesigner] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const userID = sessionStorage.getItem("userID");
-    const isDesigner = sessionStorage.getItem("idDesigner");
+    // Check sessionStorage for existing auth
+    const storedUserId = sessionStorage.getItem("userID");
+    const storedDesignerId = sessionStorage.getItem("idDesigner");
 
-    if (userID) {
-      setUser({
-        id: userID,
-        isDesigner: !!isDesigner,
-      });
+    if (storedUserId) {
+      setUserId(storedUserId);
+      setIsDesigner(!!storedDesignerId);
     }
-    setLoading(false);
+
+    setIsLoading(false);
   }, []);
 
-  const logout = () => {
-    sessionStorage.removeItem("userID");
-    sessionStorage.removeItem("idDesigner");
-    setUser(null);
-  };
+  const isAuthenticated = !!session || !!userId;
 
-  return { user, loading, logout };
+  return {
+    isAuthenticated,
+    isDesigner,
+    userId,
+    isLoading: isLoading || status === "loading",
+    user: session?.user,
+  };
 };

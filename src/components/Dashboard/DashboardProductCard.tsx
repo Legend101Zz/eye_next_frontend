@@ -1,58 +1,67 @@
-"use client";
-import Link from "next/link";
-import Image from "next/image";
-import { Skeleton } from "../ui/skeleton";
-import { useState } from "react";
+import React, { useState } from 'react';
+import Link from 'next/link';
+import { motion } from 'framer-motion';
+import { Skeleton } from "@/components/ui/skeleton";
+import Image from 'next/image';
+import { cn } from "@/lib/utils";
+import ImageWithFallback from './ImageWithFallback';
 
-interface dashboardCardProps {
+interface DashboardCardProps {
 	mainImageUrl?: string;
-	productId?: string;
+	title?: string;
+	designId?: string;
+	description?: string;
 }
 
-const DashboardProductCard = ({
-	mainImageUrl,
-	productId,
-}: dashboardCardProps) => {
-	const [image, setImage] = useState(
-		mainImageUrl ? mainImageUrl : "/shirt.png"
-	);
-
-	if (!mainImageUrl) {
-		return <LoadingCard />;
-	}
+const LoadingCard = () => {
 	return (
-		<div className="group flex flex-col gap-1 overflow-hidden  ">
-			<Link href="">
-				<Image src={image} alt="product" width={247} height={330} />
-			</Link>
-
-			<div className="flex flex-col text-left gap-1">
-				<div className="text-2xl font-bold">product Name</div>
-			</div>
-			<div className="text-muted-foreground group-hover:text-accent transition-all duration-200 text-sm flex gap-5">
-				<h2>revenue: 300$</h2>
-				<h2>orders: 32</h2>
+		<div className="space-y-4 p-4 bg-black/5 rounded-lg">
+			<Skeleton className="w-full h-[330px] rounded-lg" />
+			<div className="space-y-2">
+				<Skeleton className="w-3/4 h-6 rounded-md" />
+				<div className="flex justify-between">
+					<Skeleton className="w-24 h-4 rounded-md" />
+					<Skeleton className="w-24 h-4 rounded-md" />
+				</div>
 			</div>
 		</div>
 	);
 };
-const LoadingCard = () => {
+
+const DashboardProductCard = ({
+	mainImageUrl,
+	title = 'Untitled Design',
+	designId,
+	description
+}: DashboardCardProps) => {
+	const [isHovered, setIsHovered] = useState(false);
+
+	if (!mainImageUrl) return <LoadingCard />;
+
 	return (
-		<div className=" group flex flex-col gap-3 backdrop-blur-sm overflow-hidden w-full  ">
-			<Skeleton className="w-full h-[330px] bg-accent" />
+		<motion.div
+			whileHover={{ y: -5 }}
+			className="group relative bg-black/5 rounded-xl overflow-hidden"
+		>
+			<Link href={`/designer/designs/${designId}`}>
+				<div className="aspect-square relative">
+					<Image
+						src={mainImageUrl}
+						alt={title}
+						fill
+						className="object-cover transition-transform duration-300 group-hover:scale-105"
+					/>
+					<div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+				</div>
 
-			<div className="flex flex-col text-left gap-1">
-				<Skeleton className="rounded-xl h-5 w-3/4 mr-auto" />
-				<Skeleton className="rounded-xl h-5  w-1/4 mr-auto" />
-			</div>
-			<Skeleton className="rounded-xl h-5 bg-accent  w-1/4 mr-auto" />
-
-			<div className="my-2 flex flex-row justify-start">
-				<Skeleton className="mr-2 size-7 bg-accent-foreground rounded-full" />
-				<Skeleton className="mr-2 size-7 bg-accent-foreground rounded-full" />
-				<Skeleton className="mr-2 size-7 bg-accent-foreground rounded-full" />
-			</div>
-		</div>
+				<div className="absolute bottom-0 left-0 right-0 p-4 text-white transform translate-y-full group-hover:translate-y-0 transition-transform duration-300">
+					<h3 className="font-heading1 text-lg mb-1 truncate">{title}</h3>
+					{description && (
+						<p className="text-sm text-white/80 line-clamp-2">{description}</p>
+					)}
+				</div>
+			</Link>
+		</motion.div>
 	);
 };
 

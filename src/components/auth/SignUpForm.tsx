@@ -1,153 +1,199 @@
-import React, { useState } from "react";
+"use client";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
-import { ToastContainer, toast } from "react-toastify";
-import { FcGoogle } from "react-icons/fc";
-import "react-toastify/dist/ReactToastify.css";
 import { Input } from "../ui/input";
-import { Button } from "../ui/button";
 import { useRouter } from "next/navigation";
-import axios, { AxiosRequestConfig } from "axios";
-import { ToastAction } from "@/components/ui/toast";
 import { useToast } from "@/components/ui/use-toast";
+import { motion, AnimatePresence } from "framer-motion";
+import { signIn } from "next-auth/react";
+import { FcGoogle } from "react-icons/fc";
+import { Loader2, Mail } from "lucide-react";
+import { AuthLoadingOverlay } from "./AuthLoadingOverlay";
 
-const CreateAccountForm = () => {
+const SignupForm = () => {
 	const { toast } = useToast();
+	const router = useRouter();
+	const [isLoading, setIsLoading] = useState(false);
+	const [error, setError] = useState<string | null>(null);
+
 	const {
 		register,
 		handleSubmit,
 		formState: { errors },
+		watch
 	} = useForm();
-	const router = useRouter();
 
-	const redirectToLoginWithDelay = () => {
-		setTimeout(() => {
-			router.push("./login");
-		}, 3000); // Delay for 2 seconds (2000 milliseconds)
-	};
-
-	const toastify = (message: string, res: string) => {
-		toast({
-			title: message,
-			description: res,
-		});
-	};
+	const email = watch("email", "");
+	const emailPattern = /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i;
+	const isValidEmail = emailPattern.test(email);
 
 	const onSubmit = async (data: any) => {
-		const apiUrl = "https://eye-eye-tee.onrender.com/api/user/create";
-		const headers = {
-			"Content-Type": "application/json",
-			"x-api-key": "token",
-		};
-		const requestBody = {
-			username: data.clientName,
-			email: data.email,
-			password: data.password,
-		};
-		const payload: AxiosRequestConfig = {
-			method: "post",
-			headers,
-			url: apiUrl,
-			data: requestBody,
-		};
 		try {
-			let response = await axios(payload);
+			setIsLoading(true);
+			setError(null);
 
-			if (response.status == 200) {
-				toastify(response.statusText, response.status ? "true" : "false");
-				// loading bar
-				redirectToLoginWithDelay();
-			} else {
-				console.error("API call failed with status:", response.status);
-				return null;
+			const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/user/create`, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					'x-api-key': process.env.NEXT_PUBLIC_API_KEY || '',
+				},
+				body: JSON.stringify({
+					email: data.email
+				}),
+			});
+
+			if (!response.ok) {
+				const result = await response.json();
+				throw new Error(result.message || 'Signup failed');
 			}
-		} catch (error) {
-			console.error("An error occurred while making the API call:", error);
-			return null;
+
+			toast({
+				title: "Check your email!",
+				description: "We've sent you a password to get started. Please check your inbox.",
+			});
+
+			// Delay redirect to allow user to read the message
+			setTimeout(() => {
+				router.push('/auth/login');
+			}, 3000);
+
+		} catch (error: any) {
+			setError(error.message || 'An unexpected error occurred');
+		} finally {
+			setIsLoading(false);
 		}
-		// Handle form submission
-		console.log(data);
+	};
+
+	const handleGoogleAuth = async () => {
+		try {
+			setIsLoading(true);
+			setError(null);
+
+			const result = await signIn('google', {
+				redirect: false,
+				callbackUrl: '/',
+			});
+
+			if (result?.error) {
+				setError('Google authentication failed');
+				return;
+			}
+
+			router.push(result?.url || '/');
+
+		} catch (error) {
+			setError('Failed to connect with Google');
+		} finally {
+			setIsLoading(false);
+		}
 	};
 
 	return (
-		<div className="w-full  flex flex-col justify-center mx-auto">
-			<div className="w-full flex items-center justify-center ">
-				<div className="px-6 py-4 w-[500px] flex flex-col justify-start ">
-					<form
-						onSubmit={handleSubmit(onSubmit)}
-						className="flex flex-col gap-3"
-					>
-						{/* Client Name */}
-						<div className="flex flex-col gap-0.5">
+		<>
+			<AuthLoadingOverlay
+				isLoading={isLoading}
+				error={error}
+				onErrorDismiss={() => setError(null)}
+			/>
+
+			<div className="w-full space-y-6">
+				<form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+					<div className="space-y-2">
+						<div className="relative group">
 							<Input
-								{...register("clientName", {
-									required: "User Name is required",
+								{...register("email", {
+									required: "Email is required",
+									pattern: {
+										value: emailPattern,
+										message: "Please enter a valid email"
+									}
 								})}
-								className="w-full h-8 text-white placeholder:text-sm placeholder:tracking-wide px-4 text-base font-medium placeholder:font-normal rounded-md border-none outline-none placeholder:text-white/70"
-								type="text"
-								placeholder="Username"
-							/>
-							{errors.clientName && (
-								<p className="text-sm text-red-500 font-titleFont font-semibold px-4">
-									<span className="font-bold italic mr-1">!</span>
-									{errors.clientName.message as string}
-								</p>
-							)}
-						</div>
-						{/* Email */}
-						<div className="flex flex-col gap-0.5">
-							<Input
-								{...register("email", { required: "Email is required" })}
-								className="w-full text-white h-8 placeholder:text-sm placeholder:tracking-wide px-4 text-base font-medium placeholder:font-normal rounded-md border-none border-b-2 border-white/70 focus:border-none outline-none placeholder:text-white/70"
+								placeholder="Enter your email"
 								type="email"
-								placeholder="Email"
+								className="w-full h-11 text-white bg-black/20 border-accent/20 placeholder:text-white/40 focus:border-accent/50 transition-all duration-200"
+								disabled={isLoading}
 							/>
+							<Mail
+								className={`absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 transition-colors duration-200 ${isValidEmail ? 'text-accent' : 'text-white/20'
+									}`}
+							/>
+
+							{/* Email validation progress bar */}
+							<div className="absolute -bottom-px left-0 w-full h-[2px] bg-white/5 overflow-hidden rounded-full">
+								<motion.div
+									className="h-full bg-accent"
+									initial={{ width: "0%" }}
+									animate={{
+										width: email.includes('@') && email.includes('.') ? "100%" :
+											email.includes('@') ? "66%" :
+												email.length > 0 ? "33%" : "0%"
+									}}
+									transition={{ duration: 0.2 }}
+								/>
+							</div>
+						</div>
+
+						<AnimatePresence mode="wait">
 							{errors.email && (
-								<p className="text-sm text-red-500 font-titleFont font-semibold px-4">
-									<span className="font-bold italic mr-1">!</span>
+								<motion.p
+									initial={{ opacity: 0, y: -10 }}
+									animate={{ opacity: 1, y: 0 }}
+									exit={{ opacity: 0, y: -10 }}
+									className="text-sm text-red-500 px-1"
+								>
 									{errors.email.message as string}
-								</p>
+								</motion.p>
 							)}
-						</div>
-						{/* password */}
-						<div className="flex flex-col gap-0.5">
-							<Input
-								{...register("password", { required: "password is required" })}
-								className="w-full h-8 text-white placeholder:text-sm placeholder:tracking-wide px-4 text-base font-medium placeholder:font-normal rounded-md border-none border-b-2 border-white/70 focus:border-none outline-none placeholder:text-white/70"
-								type="password"
-								placeholder="Password"
-							/>
-							{errors.password && (
-								<p className="text-sm text-red-500 font-titleFont font-semibold px-4">
-									<span className="font-bold italic mr-1">!</span>
-									{errors.password.message as string}
-								</p>
+						</AnimatePresence>
+
+						{/* Signup instruction */}
+						<motion.p
+							className="text-white/40 text-sm px-1"
+							initial={{ opacity: 0 }}
+							animate={{ opacity: 1 }}
+							transition={{ delay: 0.2 }}
+						>
+							We&apos;ll send you a secure password via email
+						</motion.p>
+					</div>
+
+					<div className="space-y-4">
+						<button
+							type="submit"
+							disabled={isLoading || !isValidEmail}
+							className="w-full h-11 rounded-full bg-accent disabled:opacity-50 disabled:hover:bg-accent hover:bg-accent/90 text-white font-medium transition-all duration-200 flex items-center justify-center gap-2"
+						>
+							{isLoading ? (
+								<Loader2 className="w-5 h-5 animate-spin" />
+							) : (
+								"Create Account"
 							)}
+						</button>
+
+						<div className="relative">
+							<div className="absolute inset-0 flex items-center">
+								<div className="w-full border-t border-white/10"></div>
+							</div>
+							<div className="relative flex justify-center text-sm">
+								<span className="px-2 bg-black text-white/40">or sign up with</span>
+							</div>
 						</div>
 
-						<div className="flex justify-center items-center w-full">
-							<button
-								type="submit"
-								className="du-btn du-btn-secondary rounded-full px-10 bg-black/60"
-							>
-								Sign Up
-							</button>
-						</div>
-
-						<div className="flex justify-center items-center">
-							<button className="du-btn du-btn-secondary rounded-full px-10 bg-black/60">
-								<span className="text-2xl ">
-									<FcGoogle />
-								</span>
-								<span>Continue with Google</span>
-							</button>
-						</div>
-					</form>
-				</div>
+						<button
+							type="button"
+							onClick={handleGoogleAuth}
+							disabled={isLoading}
+							className="w-full h-11 rounded-full bg-white/5 hover:bg-white/10 text-white font-medium transition-all duration-200 flex items-center justify-center gap-2"
+						>
+							<FcGoogle className="w-5 h-5" />
+							<span>Google</span>
+						</button>
+					</div>
+				</form>
 			</div>
-
-			<ToastContainer />
-		</div>
+		</>
 	);
 };
 
-export default CreateAccountForm;
+export default SignupForm;

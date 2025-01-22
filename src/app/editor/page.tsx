@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { Editor } from '@/editor/components/Editor/Editor';
 import { MobileWarning } from './components/Mobile_Warning';
 import { EditorHeader } from './components/Editor_Header';
+import { DesignerRoute } from "@/components/auth/ProtectedRoutes/DesignerRoute";
 
 export default function EditorPage() {
     const [isMobile, setIsMobile] = useState(false);
@@ -27,11 +28,13 @@ export default function EditorPage() {
 
     return (
         <>
-            <EditorHeader />
-            <br />
-            <div className="container mx-auto py-4">
-                <Editor />
-            </div>
+            <DesignerRoute>
+                <EditorHeader />
+                <br />
+                <div className="container mx-auto py-4">
+                    <Editor />
+                </div>
+            </DesignerRoute>
         </>
     );
 }
