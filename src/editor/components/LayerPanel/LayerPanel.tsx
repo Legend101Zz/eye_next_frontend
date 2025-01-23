@@ -2,25 +2,29 @@ import React from 'react';
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Reorder } from 'framer-motion';
-import { Layers, Eye, EyeOff, Lock, Unlock, GripVertical } from 'lucide-react';
+import { Reorder, useDragControls, motion } from 'framer-motion';
+import { Layers, Eye, EyeOff, Lock, Unlock, GripVertical, ArrowUpCircle, ArrowDownCircle, MoveUp, MoveDown } from 'lucide-react';
 import { useEditor } from '../../store/editorStore';
 import { Design } from '../../types/editor.types';
+import { Badge } from "@/components/ui/badge";
 
 interface LayerItemProps {
     design: Design;
     isActive: boolean;
     onSelect: () => void;
+    totalLayers: number;
+    index: number;
 }
 
-const LayerItem: React.FC<LayerItemProps> = ({ design, isActive, onSelect }) => {
+const LayerItem: React.FC<LayerItemProps> = ({ design, isActive, onSelect, totalLayers, index }) => {
     const { updateDesignProperties } = useEditor();
+    const dragControls = useDragControls();
 
     const handlePropertyUpdate = (updates: Partial<Design>) => {
         const designId = design.id || design._id;
         updateDesignProperties(designId, {
             ...updates,
-            transform: design.transform // Preserve existing transform
+            transform: design.transform
         });
     };
 
@@ -42,19 +46,44 @@ const LayerItem: React.FC<LayerItemProps> = ({ design, isActive, onSelect }) => 
         handlePropertyUpdate({ opacity: parseFloat(value) });
     };
 
+    // Calculate layer level badge text
+    const getLayerLabel = () => {
+        if (index === 0) return 'Top';
+        if (index === totalLayers - 1) return 'Bottom';
+        return `Layer ${totalLayers - index}`;
+    };
+
     return (
-        <div
+        <motion.div
+            layout
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 10 }}
             className={`
-                p-3 rounded-lg border-2 mb-2 cursor-pointer
-                ${isActive ? 'border-primary' : 'border-border'}
-                hover:bg-accent/50 transition-colors
+                p-3 rounded-lg border-2 mb-2 cursor-grab active:cursor-grabbing
+                ${isActive ? 'border-primary bg-primary/5' : 'border-border'}
+                hover:bg-accent/50 transition-all relative
+                ${design.locked ? 'opacity-75' : ''}
             `}
             onClick={onSelect}
+            onPointerDown={(e) => dragControls.start(e)}
         >
-            <div className="flex items-center gap-2">
-                <GripVertical className="h-4 w-4 text-muted-foreground cursor-move" />
+            {/* Layer position indicator */}
+            <Badge
+                variant={index === 0 ? "default" : "secondary"}
+                className="absolute -left-2 -top-2 z-10"
+            >
+                {getLayerLabel()}
+            </Badge>
 
-                <div className="w-12 h-12 bg-accent/10 rounded overflow-hidden">
+            <div className="flex items-center gap-3">
+                <div className="flex flex-col items-center gap-1">
+                    <GripVertical className="h-4 w-4 text-muted-foreground cursor-grab active:cursor-grabbing" />
+                    {index > 0 && <MoveUp className="h-3 w-3 text-muted-foreground opacity-50" />}
+                    {index < totalLayers - 1 && <MoveDown className="h-3 w-3 text-muted-foreground opacity-50" />}
+                </div>
+
+                <div className="w-16 h-16 bg-accent/10 rounded overflow-hidden shadow-sm">
                     <img
                         src={design.imageUrl}
                         alt={design.name || 'Design preview'}
@@ -105,6 +134,7 @@ const LayerItem: React.FC<LayerItemProps> = ({ design, isActive, onSelect }) => 
                         <Select
                             value={design.blendMode || 'normal'}
                             onValueChange={handleBlendModeChange}
+                            disabled={design.locked}
                         >
                             <SelectTrigger className="h-7 text-xs flex-1">
                                 <SelectValue placeholder="Blend Mode" />
@@ -122,6 +152,7 @@ const LayerItem: React.FC<LayerItemProps> = ({ design, isActive, onSelect }) => 
                         <Select
                             value={String(design.opacity || 1)}
                             onValueChange={handleOpacityChange}
+                            disabled={design.locked}
                         >
                             <SelectTrigger className="h-7 text-xs w-24">
                                 <SelectValue placeholder="Opacity" />
@@ -136,7 +167,7 @@ const LayerItem: React.FC<LayerItemProps> = ({ design, isActive, onSelect }) => 
                     </div>
                 </div>
             </div>
-        </div>
+        </motion.div>
     );
 };
 
@@ -152,10 +183,9 @@ export const LayerPanel: React.FC = () => {
     const designs = designsByView[activeView];
 
     const handleReorder = (newOrder: Design[]) => {
-        // Update z-indexes based on new order
         const updatedDesigns = newOrder.map((design, index) => ({
             ...design,
-            zIndex: newOrder.length - index // Reverse index for correct stacking
+            zIndex: newOrder.length - index
         }));
         reorderDesigns(activeView, updatedDesigns);
     };
@@ -164,11 +194,17 @@ export const LayerPanel: React.FC = () => {
         <Card className="p-4">
             <div className="flex items-center gap-2 mb-4">
                 <Layers className="h-4 w-4" />
-                <h3 className="font-medium">Layers</h3>
-                <span className="text-xs text-muted-foreground ml-auto">
+                <h3 className="font-medium">Layer Order</h3>
+                <span className="text-xs text-primary ml-auto">
                     {designs.length} design{designs.length !== 1 ? 's' : ''}
                 </span>
             </div>
+
+            {designs.length > 0 && (
+                <p className="text-xs text-black mb-4">
+                    Drag layers to reorder. Top layer appears in front.
+                </p>
+            )}
 
             <Reorder.Group
                 axis="y"
@@ -178,7 +214,7 @@ export const LayerPanel: React.FC = () => {
             >
                 {[...designs]
                     .sort((a, b) => (b.zIndex || 0) - (a.zIndex || 0))
-                    .map((design) => (
+                    .map((design, index) => (
                         <Reorder.Item
                             key={design.id || design._id}
                             value={design}
@@ -189,6 +225,8 @@ export const LayerPanel: React.FC = () => {
                                 design={design}
                                 isActive={(design.id || design._id) === activeDesignId}
                                 onSelect={() => setActiveDesign(design.id || design._id)}
+                                totalLayers={designs.length}
+                                index={index}
                             />
                         </Reorder.Item>
                     ))}

@@ -255,11 +255,19 @@ export const useCanvas = () => {
         }
       };
 
-      img.onerror = () => reject(new Error("Failed to load design image"));
-
-      const corsUrl = new URL(design.imageUrl);
-      corsUrl.searchParams.append("t", Date.now().toString());
-      img.src = corsUrl.toString();
+      img.onerror = (error) => {
+        console.error("Error loading image:", error, design.imageUrl);
+        reject(new Error("Failed to load design image"));
+      };
+      // For data URLs, don't modify the URL
+      if (design.imageUrl.startsWith("data:")) {
+        img.src = design.imageUrl;
+      } else {
+        // For regular URLs, add timestamp to prevent caching
+        const corsUrl = new URL(design.imageUrl);
+        corsUrl.searchParams.append("t", Date.now().toString());
+        img.src = corsUrl.toString();
+      }
     });
   };
 

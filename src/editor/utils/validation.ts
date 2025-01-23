@@ -6,9 +6,9 @@ export const validateDesignSize = (file: File): Promise<boolean> => {
     img.onload = () => {
       // Check if image dimensions are within acceptable range
       const isValidSize =
-        img.width >= 300 &&
+        img.width >= 30 &&
         img.width <= 4000 &&
-        img.height >= 300 &&
+        img.height >= 30 &&
         img.height <= 4000;
 
       URL.revokeObjectURL(img.src);

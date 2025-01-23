@@ -65,7 +65,7 @@ export const DesignsPanel: React.FC = () => {
                                     <div className="text-sm font-medium">
                                         Design {designs.indexOf(design) + 1}
                                     </div>
-                                    <div className="text-xs text-muted-foreground">
+                                    <div className="text-xs text-black">
                                         Scale: {(design.transform.scale * 100).toFixed(0)}%
                                     </div>
                                 </div>
@@ -85,7 +85,7 @@ export const DesignsPanel: React.FC = () => {
                     ))}
 
                     {designs.length === 0 && (
-                        <div className="text-center py-8 text-muted-foreground">
+                        <div className="text-center py-8 text-black">
                             No designs added to this view yet.
                             <br />
                             Upload a design to get started.
