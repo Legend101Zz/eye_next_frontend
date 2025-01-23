@@ -51,7 +51,7 @@ export const Toolbar: React.FC = () => {
                     onClick={handleExport}
                 >
                     <Download className="mr-2 h-4 w-4" />
-                    Export Design
+                    Export Your Work
                 </Button>
             </div>
 

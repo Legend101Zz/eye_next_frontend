@@ -199,22 +199,14 @@ export const useCanvas = () => {
     }
   };
 
-  const calculateDesignScale = (
-    designWidth: number,
-    designHeight: number,
-    areaConstraints: any
-  ) => {
-    // Get the maximum allowed dimensions
-    const maxWidth = areaConstraints.width;
-    const maxHeight = areaConstraints.height;
+  const calculateDesignScale = (designWidth: number, designHeight: number) => {
+    // We want the design to be about 100px in its largest dimension
+    const targetSize = 100;
 
-    // Calculate scale ratios
-    const widthRatio = maxWidth / designWidth;
-    const heightRatio = maxHeight / designHeight;
+    // Calculate scale based on the larger dimension
+    const scale = targetSize / Math.max(designWidth, designHeight);
 
-    // Use the smaller ratio to ensure design fits within constraints
-    // Multiply by 0.8 to give some padding
-    return 0.2;
+    return scale;
   };
 
   const loadDesignImage = (design: Design, canvas: fabric.Canvas) => {
@@ -237,21 +229,17 @@ export const useCanvas = () => {
           const areaConstraints = DESIGN_AREAS[productType][activeView];
 
           // Calculate appropriate scale
-          const initialScale = calculateDesignScale(
-            img.width,
-            img.height,
-            areaConstraints
-          );
+          const initialScale = calculateDesignScale(img.width, img.height);
 
           // Calculate centered position
           const centerX = areaConstraints.left + areaConstraints.width / 2;
           const centerY = areaConstraints.top + areaConstraints.height / 2;
 
           const fabricImage = new fabric.Image(img, {
-            left: design.transform.position.x || centerX,
-            top: design.transform.position.y || centerY,
-            scaleX: design.transform.scale || initialScale,
-            scaleY: design.transform.scale || initialScale,
+            left: centerX || design.transform.position.x,
+            top: centerY || design.transform.position.y,
+            scaleX: initialScale || 100,
+            scaleY: initialScale || 100,
             angle: design.transform.rotation,
             visible: design.visible !== false,
             selectable: !design.locked,

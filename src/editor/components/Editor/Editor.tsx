@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useCallback, useState, useEffect } from 'react';
@@ -17,14 +16,90 @@ import { useEditor } from "../../store/editorStore";
 import { useCanvas } from '../../hooks/useCanvas';
 import { ViewType } from '../../types/editor.types';
 import { Card } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Download } from 'lucide-react';
+import { DesignSelector } from '../DesignSelector/DesignSelector';
+import { SaveProduct } from '../SaveProduct/SaveProduct';
 import { toast } from "@/components/ui/use-toast";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
+import { GripVertical } from 'lucide-react';
+
+
+const MIN_SIDEBAR_WIDTH = 300;
+const MAX_SIDEBAR_WIDTH = 600;
+const SectionHeader = ({ children }: { children: React.ReactNode }) => (
+    <div className="flex items-center gap-2 py-2">
+        <h3 className="text-sm font-semibold tracking-tight">{children}</h3>
+        <Separator className="flex-1" />
+    </div>
+);
+
+const ResizablePanel = ({ children, side, width, setWidth }: {
+    children: React.ReactNode;
+    side: 'left' | 'right';
+    width: number;
+    setWidth: (width: number) => void;
+}) => {
+    const [isResizing, setIsResizing] = useState(false);
+
+    const startResizing = useCallback(() => {
+        setIsResizing(true);
+    }, []);
+
+    useEffect(() => {
+        const handleMouseMove = (e: MouseEvent) => {
+            if (!isResizing) return;
+
+            let newWidth;
+            if (side === 'left') {
+                newWidth = e.clientX;
+            } else {
+                newWidth = window.innerWidth - e.clientX;
+            }
+
+            // Constrain width
+            newWidth = Math.max(MIN_SIDEBAR_WIDTH, Math.min(MAX_SIDEBAR_WIDTH, newWidth));
+            setWidth(newWidth);
+        };
+
+        const handleMouseUp = () => {
+            setIsResizing(false);
+        };
+
+        if (isResizing) {
+            document.addEventListener('mousemove', handleMouseMove);
+            document.addEventListener('mouseup', handleMouseUp);
+        }
+
+        return () => {
+            document.removeEventListener('mousemove', handleMouseMove);
+            document.removeEventListener('mouseup', handleMouseUp);
+        };
+    }, [isResizing, setWidth, side]);
+
+    return (
+        <div
+            className="flex-none relative bg-background rounded-lg shadow-sm border"
+            style={{ width: width }}
+        >
+            {children}
+            <div
+                className={`absolute top-0 ${side === 'left' ? '-right-3' : '-left-3'} h-full w-6 flex items-center justify-center cursor-col-resize z-50`}
+                onMouseDown={startResizing}
+            >
+                <div className="w-1 h-8 bg-border rounded-full hover:bg-primary/50 transition-colors">
+                    <GripVertical className="w-4 h-4 -ml-1.5 text-muted-foreground" />
+                </div>
+            </div>
+        </div>
+    );
+};
 
 export const Editor: React.FC = () => {
     const [designerId, setDesignerId] = useState<string>("");
     const [isInitialized, setIsInitialized] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
+    const [leftWidth, setLeftWidth] = useState(400);
+    const [rightWidth, setRightWidth] = useState(400);
 
     const searchParams = useSearchParams();
     const { activeView, initializeEditor } = useEditor();
@@ -39,7 +114,6 @@ export const Editor: React.FC = () => {
                 description: "Designer ID not found. Please log in again.",
                 variant: "destructive",
             });
-            // You might want to redirect to login here
             return;
         }
         setDesignerId(storedDesignerId);
@@ -112,64 +186,105 @@ export const Editor: React.FC = () => {
         );
     }
 
-    // Main editor layout
     return (
-        <div className="flex flex-col min-h-screen max-h-screen overflow-hidden relative">
+        <div className="flex flex-col min-h-screen max-h-screen bg-muted/5">
             <EditorTour />
 
-            <div className="flex-1 flex gap-6 p-4 overflow-hidden">
+            {/* Main Editor Grid */}
+            <div className="flex-1 flex gap-4 p-4 overflow-hidden">
                 {/* Left Sidebar */}
-                <div className="w-64 space-y-4 overflow-y-auto">
-                    <div className="flex justify-between items-center sticky top-0 bg-background z-10 pb-2">
-                        <h2 className="text-lg font-semibold">Editor Tools</h2>
-                        <UndoRedoControls />
+                <ResizablePanel side="left" width={leftWidth} setWidth={setLeftWidth}>
+                    <div className="flex h-full flex-col">
+                        <div className="flex justify-between items-center p-4 border-b">
+                            <h2 className="text-lg font-semibold">Editor Tools</h2>
+                            <UndoRedoControls />
+                        </div>
+
+                        <ScrollArea className="flex-1 p-4">
+                            <div className="space-y-6 pr-2">
+                                {/* Section content remains the same */}
+                                {/* Product Section */}
+                                <section>
+                                    <SectionHeader>Product Selection</SectionHeader>
+                                    <ProductSelector />
+                                </section>
+
+                                {/* Design Tools Section */}
+                                <section>
+                                    <SectionHeader>Design Tools</SectionHeader>
+                                    <div className="space-y-4">
+                                        <Card className="p-4 shadow-sm">
+                                            <DesignSelector />
+                                        </Card>
+                                        <Card className="p-4 shadow-sm">
+                                            <LayerPanel />
+                                        </Card>
+                                    </div>
+                                </section>
+
+                                {/* Transform Tools Section */}
+                                <section>
+                                    <SectionHeader>Transform & Effects</SectionHeader>
+                                    <div className="space-y-4">
+                                        <Card className="p-4 shadow-sm">
+                                            <TransformControls />
+                                        </Card>
+                                        <Card className="p-4 shadow-sm">
+                                            <CurvatureControls />
+                                        </Card>
+                                    </div>
+                                </section>
+
+                                {/* Save & Export Section */}
+                                <section>
+                                    <SectionHeader>Save & Export</SectionHeader>
+                                    <div className="space-y-4">
+                                        <Card className="p-4 shadow-sm">
+                                            <SaveProduct />
+                                        </Card>
+                                        <Card className="upload-zone p-4 shadow-sm">
+                                            <Toolbar onExport={handleExport} />
+                                        </Card>
+                                    </div>
+                                </section>
+                            </div>
+                        </ScrollArea>
                     </div>
+                </ResizablePanel>
 
-                    <div className="space-y-4">
-                        {/* Product Selector */}
-                        <Card className="p-4">
-                            <ProductSelector />
-                        </Card>
-
-                        {/* Upload Zone */}
-                        <Card className="upload-zone p-4">
-                            <Toolbar onExport={handleExport} />
-                        </Card>
-
-                        {/* Layer Panel */}
-                        {/* <Card className="layer-panel p-4">
-                            <LayerPanel />
-                        </Card> */}
-
-                        {/* Transform Controls */}
-                        <Card className="transform-controls p-4">
-                            <TransformControls />
-                        </Card>
-
-                        <Card className="p-4">
-                            <CurvatureControls />
-                        </Card>
-                    </div>
-                </div>
-
-                {/* Canvas Area */}
-                <div className="flex-1 flex items-center justify-center overflow-hidden">
+                {/* Canvas Area - Fills remaining space */}
+                <div className="flex-1 min-w-0 bg-background rounded-lg shadow-sm border overflow-hidden">
                     <div className="w-full h-full relative">
                         <Canvas />
                     </div>
                 </div>
 
                 {/* Right Sidebar */}
-                <div className="w-80 overflow-y-auto">
-                    <div className="space-y-4">
-                        {/* <Card className="p-4">
-                            <PositionGuide />
-                        </Card> */}
-                        <Card className="p-4">
-                            <DesignsPanel />
-                        </Card>
+                <ResizablePanel side="right" width={rightWidth} setWidth={setRightWidth}>
+                    <div className="flex h-full flex-col">
+                        <div className="p-4 border-b">
+                            <h2 className="text-lg font-semibold">Design Preview</h2>
+                        </div>
+
+                        <ScrollArea className="flex-1">
+                            <div className="p-4 space-y-6 pr-2">
+                                <section>
+                                    <SectionHeader>Position Guide</SectionHeader>
+                                    <Card className="p-4 shadow-sm">
+                                        <PositionGuide />
+                                    </Card>
+                                </section>
+
+                                <section>
+                                    <SectionHeader>Active Designs</SectionHeader>
+                                    <Card className="p-4 shadow-sm">
+                                        <DesignsPanel />
+                                    </Card>
+                                </section>
+                            </div>
+                        </ScrollArea>
                     </div>
-                </div>
+                </ResizablePanel>
             </div>
         </div>
     );

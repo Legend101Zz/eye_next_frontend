@@ -6,7 +6,7 @@ import { ViewType } from '../../../../types/editor.types';
 export const ViewSelector: React.FC = () => {
     const { activeView, setActiveView } = useEditor();
 
-    const views: ViewType[] = ['front', 'back', 'shoulder'];
+    const views: ViewType[] = ['front', 'back'];
 
     return (
         <div className="space-y-2">

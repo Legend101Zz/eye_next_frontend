@@ -70,6 +70,11 @@ export interface EditorState {
   isDragging: boolean;
   isEditing: boolean;
   isLoading: boolean;
+  designStateHistory: {
+    [productId: string]: {
+      [view in ViewType]: Design[];
+    };
+  };
 }
 
 export interface CurvatureSettings {

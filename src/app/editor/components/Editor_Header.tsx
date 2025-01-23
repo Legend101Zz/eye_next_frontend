@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import Link from "next/link";
 import { CgProfile } from "react-icons/cg";
-import { MdOutlineLogin, MdLogout } from "react-icons/md";
+import { MdOutlineLogin, MdLogout, MdDashboard } from "react-icons/md";
 
 export const EditorHeader: React.FC = () => {
     const [isOpen, setIsOpen] = useState(false);
@@ -46,6 +46,14 @@ export const EditorHeader: React.FC = () => {
                                     <div className="flex gap-2 items-center px-4 py-2 text-gray-800 hover:bg-gray-100">
                                         <span>Login</span>
                                         <MdOutlineLogin />
+                                    </div>
+                                </Link>
+                            </li>
+                            <li>
+                                <Link href="/profile/DesignerDashboard">
+                                    <div className="flex gap-2 items-center px-4 py-2 text-gray-800 hover:bg-gray-100">
+                                        <span>Dashboard</span>
+                                        <MdDashboard />
                                     </div>
                                 </Link>
                             </li>

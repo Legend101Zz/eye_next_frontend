@@ -18,6 +18,7 @@ import {
   getClothingProducts,
   getDesignerDesigns,
   getDesignById,
+  createFinalProduct,
 } from "../../helpers/api/productEditorApi";
 
 // Separate interface for actions
@@ -74,6 +75,11 @@ interface EditorActions {
   toggleDesignVisibility: (designId: string) => void;
 
   toggleDesignLock: (designId: string) => void;
+
+  // Save Design
+  addNewDesignToStore: (design: any) => void;
+  addDesignToCanvas: (design: Design, view: ViewType) => void;
+  createFinalProduct: () => Promise<void>;
 }
 
 // Combine state and actions
@@ -101,11 +107,12 @@ const initialState: EditorState = {
   isDragging: false,
   isEditing: false,
   isLoading: false,
+  designStateHistory: {},
 };
 
 export const useEditor = create<EditorStore>()(
   devtools(
-    immer((set) => ({
+    immer((set, get) => ({
       ...initialState,
 
       // Initialize editor with products and designs
@@ -175,7 +182,36 @@ export const useEditor = create<EditorStore>()(
 
       setActiveProduct: (productId: string) =>
         set((state) => {
+          const prevProductId = state.activeProductId;
+          const prevDesigns = state.designsByView;
+
+          // Save current state before switching
+          if (prevProductId) {
+            state.designStateHistory[prevProductId] = {
+              ...state.designStateHistory[prevProductId],
+              ...prevDesigns,
+            };
+          }
+
+          // Set new product
           state.activeProductId = productId;
+
+          // Restore previous state for this product if it exists
+          if (state.designStateHistory[productId]) {
+            state.designsByView = {
+              ...state.designsByView,
+              ...state.designStateHistory[productId],
+            };
+          } else {
+            // Reset to empty state for new product
+            state.designsByView = {
+              front: [],
+              back: [],
+              shoulder: [],
+            };
+          }
+
+          // Update garment color if needed
           const product = state.availableProducts.find(
             (p) => p.id === productId
           );
@@ -186,24 +222,28 @@ export const useEditor = create<EditorStore>()(
 
       // View Management
       setActiveView: (view) =>
-        set(
-          (state) => {
-            state.activeView = view;
-            // Clear active design if no designs in new view
-            if (state.designsByView[view].length === 0) {
-              state.activeDesignId = null;
-            } else if (
-              !state.designsByView[view].find(
-                (d) => d.id === state.activeDesignId
-              )
-            ) {
-              // Set first design in new view as active if current active design isn't in this view
-              state.activeDesignId = state.designsByView[view][0].id;
-            }
-          },
-          false,
-          "setActiveView"
-        ),
+        set((state) => {
+          // Save current view state
+          if (state.activeProductId) {
+            state.designStateHistory[state.activeProductId] = {
+              ...state.designStateHistory[state.activeProductId],
+              [state.activeView]: [...state.designsByView[state.activeView]],
+            };
+          }
+
+          // Update active view
+          state.activeView = view;
+
+          // Update active design
+          const designs = state.designsByView[view];
+          if (designs.length === 0) {
+            state.activeDesignId = null;
+          } else if (
+            !designs.find((d) => (d.id || d._id) === state.activeDesignId)
+          ) {
+            state.activeDesignId = designs[0].id || designs[0]._id;
+          }
+        }),
 
       // Garment Management
       setGarmentColor: (color) =>
@@ -230,24 +270,30 @@ export const useEditor = create<EditorStore>()(
           "addDesign"
         ),
 
-      removeDesign: (designId) =>
-        set(
-          (state) => {
-            const currentView = state.activeView;
-            state.designsByView[currentView] = state.designsByView[
-              currentView
-            ].filter((d) => d.id !== designId);
+      removeDesign: (designId: string) =>
+        set((state) => {
+          const view = state.activeView;
+          state.designsByView[view] = state.designsByView[view].filter(
+            (d) => (d.id || d._id) !== designId
+          );
 
-            // Update active design if needed
-            if (state.activeDesignId === designId) {
-              const remainingDesigns = state.designsByView[currentView];
-              state.activeDesignId =
-                remainingDesigns.length > 0 ? remainingDesigns[0].id : null;
-            }
-          },
-          false,
-          "removeDesign"
-        ),
+          // Update active design if needed
+          if (state.activeDesignId === designId) {
+            const remainingDesigns = state.designsByView[view];
+            state.activeDesignId =
+              remainingDesigns.length > 0
+                ? remainingDesigns[0].id || remainingDesigns[0]._id
+                : null;
+          }
+
+          // Update history
+          if (state.activeProductId) {
+            state.designStateHistory[state.activeProductId] = {
+              ...state.designStateHistory[state.activeProductId],
+              [view]: [...state.designsByView[view]],
+            };
+          }
+        }),
 
       updateDesign: (designId, updates) =>
         set(
@@ -529,6 +575,130 @@ export const useEditor = create<EditorStore>()(
           false,
           "toggleDesignLock"
         ),
+
+      addDesignToCanvas: (design: Design, view: ViewType) =>
+        set((state) => {
+          const designs = state.designsByView[view];
+
+          // Ensure unique naming
+          const baseName = design.name || "Design";
+          let counter = 1;
+          let uniqueName = baseName;
+
+          while (designs.some((d) => d.name === uniqueName)) {
+            uniqueName = `${baseName}_${counter}`;
+            counter++;
+          }
+
+          // Add design with unique name and proper positioning
+          const newDesign = {
+            ...design,
+            name: uniqueName,
+            transform: {
+              ...design.transform,
+              position: {
+                x: design.transform.position.x + designs.length * 20,
+                y: design.transform.position.y + designs.length * 20,
+              },
+            },
+            zIndex: designs.length,
+          };
+
+          state.designsByView[view].push(newDesign);
+          state.activeDesignId = design.id || design._id;
+
+          // Update history
+          if (state.activeProductId) {
+            state.designStateHistory[state.activeProductId] = {
+              ...state.designStateHistory[state.activeProductId],
+              [view]: [...state.designsByView[view]],
+            };
+          }
+        }),
+
+      addNewDesignToStore: (design: any) =>
+        set(
+          (state) => {
+            state.designs.push(design);
+          },
+          false,
+          "addNewDesignToStore"
+        ),
+
+      createFinalProduct: async () => {
+        const state = get();
+        const { activeProductId, designsByView, garmentColor } = state;
+
+        if (!activeProductId) {
+          throw new Error("No product selected");
+        }
+
+        const product = state.availableProducts.find(
+          (p) => p.id === activeProductId
+        );
+        if (!product) {
+          throw new Error("Product not found");
+        }
+
+        // Gather all designs and their placements
+        const designPlacements = [];
+
+        // Process front view designs
+        for (const design of designsByView.front) {
+          designPlacements.push({
+            designId: design.id,
+            position: "front",
+            scale: design.transform.scale,
+            rotation: design.transform.rotation,
+            coordinates: {
+              x: design.transform.position.x,
+              y: design.transform.position.y,
+            },
+          });
+        }
+
+        // Process back view designs
+        for (const design of designsByView.back) {
+          designPlacements.push({
+            designId: design.id,
+            position: "back",
+            scale: design.transform.scale,
+            rotation: design.transform.rotation,
+            coordinates: {
+              x: design.transform.position.x,
+              y: design.transform.position.y,
+            },
+          });
+        }
+
+        // Create the final product data
+        const productData = {
+          productName: `${product.name} with Custom Design`,
+          designGroups: [
+            {
+              name: "Custom Design",
+              gender: "UNISEX", // You might want to make this dynamic
+              designs: designPlacements,
+              variants: [
+                {
+                  baseProductId: product.id,
+                  color: garmentColor,
+                  stock: {}, // You might want to handle stock management
+                },
+              ],
+              designPrice: 0, // You might want to calculate this
+            },
+          ],
+        };
+
+        try {
+          const response = await createFinalProduct(productData);
+          return response;
+        } catch (error) {
+          console.error("Error creating final product:", error);
+          throw error;
+        }
+      },
     }))
   )
 );
