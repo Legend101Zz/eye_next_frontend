@@ -166,10 +166,10 @@ export const DesignSelector = () => {
         const uniqueId = nanoid();
         const usageInfo = designUsage[design._id];
         const name = `${design.title || 'Design'} ${usageInfo ? usageInfo.usageCount + 1 : 1}`;
-
+        console.log('add_selector', design)
         addDesignToCanvas({
             id: uniqueId,
-            _id: design._id,
+            _id: design.designId,
             name,
             imageUrl: design.designImages[0].url,
             transform: {

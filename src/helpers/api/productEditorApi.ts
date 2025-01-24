@@ -77,13 +77,16 @@ export const getDesignById = async (designId: string) => {
   }
 };
 
-export const createFinalProduct = async (productData: any) => {
+export const createFinalProduct = async (productData: FormData) => {
   try {
     const response = await axios({
       method: "POST",
-      headers: DEFAULT_HEADERS,
       url: `${API_URL}/api/finalproduct/create`,
       data: productData,
+      headers: {
+        ...DEFAULT_HEADERS,
+        "Content-Type": "multipart/form-data",
+      },
     });
     return response.data;
   } catch (error) {

@@ -539,8 +539,9 @@ export const ProductPreviewModal = () => {
             // Add designs
             const designPlacements = [];
             for (const design of designStates[activeProduct.id]?.front || []) {
+                console.log('design-designPlacements', design, design._id)
                 designPlacements.push({
-                    designId: design.id,
+                    designId: design._id,
                     position: "front",
                     scale: design.transform.scale,
                     rotation: design.transform.rotation,
@@ -551,8 +552,9 @@ export const ProductPreviewModal = () => {
                 });
             }
             for (const design of designStates[activeProduct.id]?.back || []) {
+                console.log('design-designPlacements', design, design._id)
                 designPlacements.push({
-                    designId: design.id,
+                    designId: design._id,
                     position: "back",
                     scale: design.transform.scale,
                     rotation: design.transform.rotation,
@@ -574,15 +576,29 @@ export const ProductPreviewModal = () => {
             productData.append('variants', JSON.stringify(variants));
 
             // Add processed images
-            // Here you would add the actual image data from your previews
-            const processedImages = [{
+            // Convert base64/dataURL to Blob
+            const frontBlob = await fetch(activeProduct.previews.front).then(r => r.blob());
+            const backBlob = await fetch(activeProduct.previews.back).then(r => r.blob());
+            setProgress(50);
+            // Append images with specific names that include the color
+            productData.append(
+                `frontImage`,
+                frontBlob,
+                `${productFormData.productName}_${garmentColor}_front.png`
+            );
+            productData.append(
+                `backImage`,
+                backBlob,
+                `${productFormData.productName}_${garmentColor}_back.png`
+            );
+
+            // Add metadata for images
+            productData.append('imageMetadata', JSON.stringify({
                 baseProductId: activeProduct.id,
                 color: garmentColor,
-                front: activeProduct.previews.front,
-                back: activeProduct.previews.back
-            }];
-            productData.append('processedImages', JSON.stringify(processedImages));
+            }));
 
+            setProgress(90);
             await createFinalProduct(productData);
 
             clearInterval(progressInterval);
@@ -784,7 +800,7 @@ export const ProductPreviewModal = () => {
                                                                                                 }))}
                                                                                                 disabled={isGeneratingPreview}
                                                                                             >
-                                                                                                {['MENS', 'WOMENS', 'UNISEX', 'KIDS'].map((gender) => (
+                                                                                                {['male', 'female', 'unisex'].map((gender) => (
                                                                                                     <div key={gender} className="flex items-center space-x-2">
                                                                                                         <RadioGroupItem value={gender} id={gender} />
                                                                                                         <Label htmlFor={gender}>{gender}</Label>
