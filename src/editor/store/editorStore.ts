@@ -79,7 +79,7 @@ interface EditorActions {
   // Save Design
   addNewDesignToStore: (design: any) => void;
   addDesignToCanvas: (design: Design, view: ViewType) => void;
-  createFinalProduct: () => Promise<void>;
+  createFinalProduct: (productFormData: FormData) => Promise<void>;
 }
 
 // Combine state and actions
@@ -625,7 +625,7 @@ export const useEditor = create<EditorStore>()(
           "addNewDesignToStore"
         ),
 
-      createFinalProduct: async () => {
+      createFinalProduct: async (productFormData: FormData) => {
         const state = get();
         const { activeProductId, designsByView, garmentColor } = state;
 
@@ -640,59 +640,9 @@ export const useEditor = create<EditorStore>()(
           throw new Error("Product not found");
         }
 
-        // Gather all designs and their placements
-        const designPlacements = [];
-
-        // Process front view designs
-        for (const design of designsByView.front) {
-          designPlacements.push({
-            designId: design.id,
-            position: "front",
-            scale: design.transform.scale,
-            rotation: design.transform.rotation,
-            coordinates: {
-              x: design.transform.position.x,
-              y: design.transform.position.y,
-            },
-          });
-        }
-
-        // Process back view designs
-        for (const design of designsByView.back) {
-          designPlacements.push({
-            designId: design.id,
-            position: "back",
-            scale: design.transform.scale,
-            rotation: design.transform.rotation,
-            coordinates: {
-              x: design.transform.position.x,
-              y: design.transform.position.y,
-            },
-          });
-        }
-
-        // Create the final product data
-        const productData = {
-          productName: `${product.name} with Custom Design`,
-          designGroups: [
-            {
-              name: "Custom Design",
-              gender: "UNISEX", // You might want to make this dynamic
-              designs: designPlacements,
-              variants: [
-                {
-                  baseProductId: product.id,
-                  color: garmentColor,
-                  stock: {}, // You might want to handle stock management
-                },
-              ],
-              designPrice: 0, // You might want to calculate this
-            },
-          ],
-        };
-
         try {
-          const response = await createFinalProduct(productData);
+          console.log("creatingFinal prod", productFormData);
+          const response = await createFinalProduct(productFormData);
           return response;
         } catch (error) {
           console.error("Error creating final product:", error);
