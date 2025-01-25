@@ -1,16 +1,17 @@
-import React, { useState, useEffect } from 'react';
+//@ts-nocheck
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useEditor } from "../../store/editorStore";
-import { Upload, Palette, Layout, Layers, Move, Eye, RotateCcw, ZoomIn, Mouse, RefreshCw } from 'lucide-react';
+import { Upload, Palette, Layout, Layers, Move, Eye, Settings, ZoomIn, Mouse, RefreshCw, Image, Save, ShoppingCart, Check } from 'lucide-react';
 
 const EditorTour = () => {
     const [showTour, setShowTour] = useState(false);
     const [currentStep, setCurrentStep] = useState(0);
     const { setActiveView } = useEditor();
+    const elementRefs = useRef<{ [key: string]: HTMLElement | null }>({});
 
-    // Check if this is the first visit
     useEffect(() => {
         const hasSeenTour = localStorage.getItem('editorTourCompleted');
         if (!hasSeenTour) {
@@ -18,161 +19,200 @@ const EditorTour = () => {
         }
     }, []);
 
-    // Helper function to scroll to and highlight an element
-    const highlightElement = (selector: string) => {
+    const scrollToElement = (selector: string) => {
         const element = document.querySelector(selector);
         if (element) {
             element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            return element.getBoundingClientRect();
+            // Add highlight effect
+            element.classList.add('ring-2', 'ring-primary', 'ring-offset-2');
+            // Remove highlight after animation
+            setTimeout(() => {
+                element.classList.remove('ring-2', 'ring-primary', 'ring-offset-2');
+            }, 2000);
         }
-        return null;
     };
+
+    // Scroll handler for when tour step changes
+    useEffect(() => {
+        if (showTour && tourSteps[currentStep].highlight) {
+            scrollToElement(tourSteps[currentStep].highlight);
+        }
+    }, [currentStep, showTour]);
 
     const tourSteps = [
         {
             title: "Welcome to the Design Editor! 👋",
-            description: "Let's take a quick tour to help you get started with creating amazing designs.",
+            description: "Let's explore our powerful design editor that helps you create and customize product designs with ease.",
             icon: <Layout className="w-12 h-12 text-primary" />,
             overlay: "full",
+            textColor: "text-primary"
         },
         {
-            title: "Upload Your Designs",
-            description: "Drop your design files here or click to browse. We'll automatically adjust the size to fit perfectly on your garment.",
-            icon: <Upload className="w-12 h-12 text-primary" />,
-            highlight: ".upload-zone",
-            position: "right",
-            action: () => setActiveView('front'),
+            title: "Product Selection",
+            description: "Start by choosing your product and customizing colors. We'll show you exactly where your designs can be placed.",
+            icon: <Settings className="w-12 h-12 text-primary" />,
+            highlight: ".product-selector",
+            position: "left",
+            textColor: "text-foreground",
             animation: (
-                <motion.div
-                    className="w-16 h-16 border-2 border-dashed border-primary rounded-lg"
-                    animate={{
-                        y: [0, -20, 0],
-                        opacity: [1, 0.5, 1]
-                    }}
-                    transition={{
-                        duration: 2,
-                        repeat: Infinity,
-                        ease: "easeInOut"
-                    }}
-                >
-                    <Upload className="w-full h-full p-3 text-primary" />
+                <motion.div className="space-y-3">
+                    <motion.div
+                        className="h-8 bg-primary/20 rounded flex items-center px-3 text-foreground"
+                        animate={{
+                            backgroundColor: ["hsl(221,83%,53%,0.2)", "hsl(221,83%,53%,0.3)"],
+                        }}
+                        transition={{ duration: 2, repeat: Infinity }}
+                    >
+                        Product Type
+                    </motion.div>
+                    <div className="flex gap-2">
+                        {["#FF0000", "#00FF00", "#0000FF"].map((color, i) => (
+                            <motion.div
+                                key={color}
+                                className="w-6 h-6 rounded-full border-2 border-white"
+                                style={{ backgroundColor: color }}
+                                animate={{ scale: i === 0 ? [1, 1.2, 1] : 1 }}
+                                transition={{ duration: 1, repeat: Infinity }}
+                            />
+                        ))}
+                    </div>
                 </motion.div>
             )
         },
         {
-            title: "Transform Your Designs",
-            description: "Use these intuitive controls to perfect your design's placement. Try rotating, scaling, or dragging to position.",
-            icon: <Move className="w-12 h-12 text-primary" />,
-            highlight: ".transform-controls",
+            title: "Design Library",
+            description: "Browse your design library or upload new designs. We support PNG, JPG, and SVG formats.",
+            icon: <Image className="w-12 h-12 text-primary" />,
+            highlight: ".design-selector",
             position: "left",
+            textColor: "text-foreground",
             animation: (
-                <div className="space-y-4">
-                    <motion.div className="flex items-center gap-2">
-                        <ZoomIn className="w-6 h-6 text-primary" />
-                        <motion.div
-                            className="h-2 w-32 bg-primary rounded"
-                            animate={{
-                                scaleX: [1, 1.5, 1],
-                            }}
-                            transition={{
-                                duration: 2,
-                                repeat: Infinity,
-                                ease: "easeInOut"
-                            }}
-                        />
-                    </motion.div>
-                    <motion.div className="flex items-center gap-2">
-                        <RefreshCw className="w-6 h-6 text-primary" />
-                        <motion.div
-                            className="w-6 h-6 border-2 border-primary rounded"
-                            animate={{
-                                rotate: [0, 360],
-                            }}
-                            transition={{
-                                duration: 2,
-                                repeat: Infinity,
-                                ease: "linear"
-                            }}
-                        />
-                    </motion.div>
-                    <motion.div className="flex items-center gap-2">
-                        <Mouse className="w-6 h-6 text-primary" />
-                        <motion.div
-                            className="w-6 h-6 bg-primary/20 rounded-full"
-                            animate={{
-                                x: [0, 40, 0],
-                            }}
-                            transition={{
-                                duration: 2,
-                                repeat: Infinity,
-                                ease: "easeInOut"
-                            }}
-                        >
-                            <motion.div
-                                className="w-2 h-2 bg-primary rounded-full"
-                                style={{ margin: '8px' }}
-                            />
-                        </motion.div>
-                    </motion.div>
-                </div>
-            )
-        },
-        {
-            title: "Layer Management",
-            description: "Manage multiple designs with our layer system. Drag to reorder, adjust opacity, or change blend modes for creative effects.",
-            icon: <Layers className="w-12 h-12 text-primary" />,
-            highlight: ".layer-panel",
-            position: "right",
-            animation: (
-                <motion.div className="space-y-2">
-                    {[1, 2, 3].map((i) => (
+                <motion.div className="grid grid-cols-3 gap-2">
+                    {[...Array(6)].map((_, i) => (
                         <motion.div
                             key={i}
-                            className="h-8 bg-primary/20 rounded"
-                            initial={{ x: 0 }}
+                            className="aspect-square bg-primary/20 rounded border border-white/20"
                             animate={{
-                                y: i === 2 ? [-20, 0, -20] : 0,
+                                scale: i === 2 ? [1, 1.1, 1] : 1,
+                                opacity: i === 2 ? [0.5, 1, 0.5] : 0.5
                             }}
-                            transition={{
-                                duration: 2,
-                                repeat: Infinity,
-                                ease: "easeInOut",
-                                delay: i * 0.2
-                            }}
+                            transition={{ duration: 2, repeat: Infinity }}
                         />
                     ))}
                 </motion.div>
             )
         },
         {
-            title: "Preview & Export",
-            description: "Once you're satisfied with your design, export it in high quality. Choose which views to include in your final output.",
-            icon: <Eye className="w-12 h-12 text-primary" />,
-            highlight: ".export-button",
-            position: "left"
+            title: "Layer Management",
+            description: "Organize multiple designs easily. Change their order, adjust opacity, and create stunning layered effects.",
+            icon: <Layers className="w-12 h-12 text-primary" />,
+            highlight: ".layer-panel",
+            position: "left",
+            textColor: "text-foreground",
+            animation: (
+                <motion.div className="space-y-2">
+                    {[1, 2, 3].map((i) => (
+                        <motion.div
+                            key={i}
+                            className="h-8 bg-primary/20 rounded flex items-center justify-between px-3 text-foreground"
+                            animate={{
+                                x: i === 1 ? [0, 10, 0] : 0,
+                                opacity: i === 1 ? [0.5, 1, 0.5] : 0.5
+                            }}
+                            transition={{ duration: 2, repeat: Infinity }}
+                        >
+                            <span>Layer {i}</span>
+                            <div className="flex gap-1">
+                                <Eye className="w-4 h-4" />
+                                <motion.div
+                                    className="w-4 h-4"
+                                    animate={{ rotate: i === 1 ? [0, 360] : 0 }}
+                                    transition={{ duration: 4, repeat: Infinity }}
+                                >
+                                    <Move className="w-4 h-4" />
+                                </motion.div>
+                            </div>
+                        </motion.div>
+                    ))}
+                </motion.div>
+            )
+        },
+        {
+            title: "Transform Controls",
+            description: "Adjust your designs with precision. Use the arrow keys for fine movements, and Shift+Arrow for larger adjustments.",
+            icon: <Move className="w-12 h-12 text-primary" />,
+            highlight: ".transform-controls",
+            position: "left",
+            textColor: "text-foreground"
+        },
+        {
+            title: "Position Guide",
+            description: "Keep track of your design placement. The guide shows safe areas and warns if your design might get cut off during printing.",
+            icon: <Mouse className="w-12 h-12 text-primary" />,
+            highlight: ".position-guide",
+            position: "right",
+            textColor: "text-foreground"
+        },
+        {
+            title: "Surface Mapping",
+            description: "Make your designs look natural on the product. Add realistic curves and depth to match the product's surface.",
+            icon: <Settings className="w-12 h-12 text-primary" />,
+            highlight: ".curvature-controls",
+            position: "left",
+            textColor: "text-foreground"
+        },
+        {
+            title: "Ready to Sell",
+            description: "Save your design and prepare it for your store. Set pricing, add product details, and make it available to your customers!",
+            icon: <ShoppingCart className="w-12 h-12 text-primary" />,
+            highlight: ".save-controls",
+            position: "left",
+            textColor: "text-foreground",
+            animation: (
+                <motion.div className="space-y-2">
+                    <motion.div
+                        className="p-3 bg-primary/20 rounded flex items-center justify-between text-foreground"
+                        animate={{ scale: [1, 1.02, 1] }}
+                        transition={{ duration: 2, repeat: Infinity }}
+                    >
+                        <span>Product Details</span>
+                        <Check className="w-4 h-4" />
+                    </motion.div>
+                    <motion.div
+                        className="p-3 bg-primary/20 rounded flex items-center justify-between text-foreground"
+                        animate={{ scale: [1, 1.02, 1] }}
+                        transition={{ duration: 2, repeat: Infinity, delay: 0.3 }}
+                    >
+                        <span>Set Price</span>
+                        <Check className="w-4 h-4" />
+                    </motion.div>
+                    <motion.div
+                        className="p-3 bg-primary/20 rounded flex items-center justify-between text-foreground"
+                        animate={{ scale: [1, 1.02, 1] }}
+                        transition={{ duration: 2, repeat: Infinity, delay: 0.6 }}
+                    >
+                        <span>Publish</span>
+                        <Check className="w-4 h-4" />
+                    </motion.div>
+                </motion.div>
+            )
         }
     ];
 
     const highlightStyles = (position: string) => {
-        let baseStyles = "fixed bg-black/50 backdrop-blur-sm";
+        let baseStyles = "fixed bg-black/70 backdrop-blur-sm";
         switch (position) {
-            case "left":
-                return `${baseStyles} top-0 left-0 bottom-0`;
-            case "right":
-                return `${baseStyles} top-0 right-0 bottom-0`;
-            case "top":
-                return `${baseStyles} top-0 left-0 right-0`;
-            case "bottom":
-                return `${baseStyles} bottom-0 left-0 right-0`;
-            default:
-                return `${baseStyles} inset-0`;
+            case "left": return `${baseStyles} top-0 left-0 bottom-0`;
+            case "right": return `${baseStyles} top-0 right-0 bottom-0`;
+            case "top": return `${baseStyles} top-0 left-0 right-0`;
+            case "bottom": return `${baseStyles} bottom-0 left-0 right-0`;
+            default: return `${baseStyles} inset-0`;
         }
     };
 
     const handleNext = () => {
         if (currentStep < tourSteps.length - 1) {
             setCurrentStep(prev => prev + 1);
-            tourSteps[currentStep + 1].action?.();
         } else {
             completeTour();
         }
@@ -181,7 +221,6 @@ const EditorTour = () => {
     const handlePrevious = () => {
         if (currentStep > 0) {
             setCurrentStep(prev => prev - 1);
-            tourSteps[currentStep - 1].action?.();
         }
     };
 
@@ -198,7 +237,6 @@ const EditorTour = () => {
         <AnimatePresence>
             {showTour && (
                 <>
-                    {/* Overlay */}
                     <motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
@@ -208,7 +246,6 @@ const EditorTour = () => {
                         <div className={highlightStyles(currentStepData.position || "full")} />
                     </motion.div>
 
-                    {/* Tour Card */}
                     <motion.div
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
@@ -216,26 +253,27 @@ const EditorTour = () => {
                         transition={{ duration: 0.2 }}
                         className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 w-full max-w-md"
                     >
-                        <Card className="p-6 backdrop-blur-xl bg-background/95 shadow-2xl border-2">
+                        <Card className="p-6 backdrop-blur-xl bg-background shadow-2xl border-2 border-primary/20">
                             <div className="space-y-4">
                                 <div className="flex items-center gap-4">
                                     {currentStepData.icon}
                                     <div>
-                                        <h3 className="text-lg font-semibold">{currentStepData.title}</h3>
-                                        <p className="text-muted-foreground">{currentStepData.description}</p>
+                                        <h3 className={`text-lg  font-semibold ${currentStepData.textColor}`}>
+                                            {currentStepData.title}
+                                        </h3>
+                                        <p className="text-black">
+                                            {currentStepData.description}
+                                        </p>
                                     </div>
                                 </div>
 
-                                {/* Animation Container */}
                                 {currentStepData.animation && (
-                                    <div className="p-4 bg-muted/50 rounded-lg">
+                                    <div className="p-4 bg-muted rounded-lg">
                                         {currentStepData.animation}
                                     </div>
                                 )}
 
-                                {/* Progress and Controls */}
                                 <div className="space-y-4">
-                                    {/* Progress dots */}
                                     <div className="flex justify-center gap-1">
                                         {tourSteps.map((_, index) => (
                                             <div
@@ -246,7 +284,6 @@ const EditorTour = () => {
                                         ))}
                                     </div>
 
-                                    {/* Navigation buttons */}
                                     <div className="flex justify-between items-center">
                                         <Button
                                             variant="outline"

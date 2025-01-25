@@ -25,6 +25,7 @@ import { Separator } from "@/components/ui/separator";
 import { GripVertical } from 'lucide-react';
 
 
+
 const MIN_SIDEBAR_WIDTH = 300;
 const MAX_SIDEBAR_WIDTH = 600;
 const SectionHeader = ({ children }: { children: React.ReactNode }) => (
@@ -198,28 +199,37 @@ export const Editor: React.FC = () => {
                     <div className="flex h-full flex-col">
                         <div className="flex justify-between items-center p-4 border-b">
                             <h2 className="text-lg font-semibold">Editor Tools</h2>
-                            <UndoRedoControls />
+                            <div className="undo-redo-controls">
+                                <UndoRedoControls />
+                            </div>
                         </div>
 
                         <ScrollArea className="flex-1 p-4">
                             <div className="space-y-6 pr-2">
-                                {/* Section content remains the same */}
                                 {/* Product Section */}
                                 <section>
                                     <SectionHeader>Product Selection</SectionHeader>
-                                    <ProductSelector />
+                                    <div className="product-selector">
+                                        <Card className="p-4 shadow-sm">
+                                            <ProductSelector />
+                                        </Card>
+                                    </div>
                                 </section>
 
                                 {/* Design Tools Section */}
                                 <section>
                                     <SectionHeader>Design Tools</SectionHeader>
                                     <div className="space-y-4">
-                                        <Card className="p-4 shadow-sm">
-                                            <DesignSelector />
-                                        </Card>
-                                        <Card className="p-4 shadow-sm">
-                                            <LayerPanel />
-                                        </Card>
+                                        <div className="design-selector">
+                                            <Card className="p-4 shadow-sm">
+                                                <DesignSelector />
+                                            </Card>
+                                        </div>
+                                        <div className="layer-panel">
+                                            <Card className="p-4 shadow-sm">
+                                                <LayerPanel />
+                                            </Card>
+                                        </div>
                                     </div>
                                 </section>
 
@@ -227,12 +237,16 @@ export const Editor: React.FC = () => {
                                 <section>
                                     <SectionHeader>Transform & Effects</SectionHeader>
                                     <div className="space-y-4">
-                                        <Card className="p-4 shadow-sm">
-                                            <TransformControls />
-                                        </Card>
-                                        <Card className="p-4 shadow-sm">
-                                            <CurvatureControls />
-                                        </Card>
+                                        <div className="transform-controls">
+                                            <Card className="p-4 shadow-sm">
+                                                <TransformControls />
+                                            </Card>
+                                        </div>
+                                        <div className="curvature-controls">
+                                            <Card className="p-4 shadow-sm">
+                                                <CurvatureControls />
+                                            </Card>
+                                        </div>
                                     </div>
                                 </section>
 
@@ -240,12 +254,16 @@ export const Editor: React.FC = () => {
                                 <section>
                                     <SectionHeader>Save & Export</SectionHeader>
                                     <div className="space-y-4">
-                                        <Card className="p-4 shadow-sm">
-                                            <SaveProduct />
-                                        </Card>
-                                        <Card className="upload-zone p-4 shadow-sm">
-                                            <Toolbar onExport={handleExport} />
-                                        </Card>
+                                        <div className="save-controls">
+                                            <Card className="p-4 shadow-sm">
+                                                <SaveProduct />
+                                            </Card>
+                                        </div>
+                                        <div className="export-controls">
+                                            <Card className="upload-zone p-4 shadow-sm">
+                                                <Toolbar onExport={handleExport} />
+                                            </Card>
+                                        </div>
                                     </div>
                                 </section>
                             </div>
@@ -253,9 +271,9 @@ export const Editor: React.FC = () => {
                     </div>
                 </ResizablePanel>
 
-                {/* Canvas Area - Fills remaining space */}
+                {/* Canvas Area */}
                 <div className="flex-1 min-w-0 bg-background rounded-lg shadow-sm border overflow-hidden">
-                    <div className="w-full h-full relative">
+                    <div className="w-full h-full relative canvas-area">
                         <Canvas />
                     </div>
                 </div>
@@ -271,16 +289,20 @@ export const Editor: React.FC = () => {
                             <div className="p-4 space-y-6 pr-2">
                                 <section>
                                     <SectionHeader>Position Guide</SectionHeader>
-                                    <Card className="p-4 shadow-sm">
-                                        <PositionGuide />
-                                    </Card>
+                                    <div className="position-guide">
+                                        <Card className="p-4 shadow-sm">
+                                            <PositionGuide />
+                                        </Card>
+                                    </div>
                                 </section>
 
                                 <section>
                                     <SectionHeader>Active Designs</SectionHeader>
-                                    <Card className="p-4 shadow-sm">
-                                        <DesignsPanel />
-                                    </Card>
+                                    <div className="designs-panel">
+                                        <Card className="p-4 shadow-sm">
+                                            <DesignsPanel />
+                                        </Card>
+                                    </div>
                                 </section>
                             </div>
                         </ScrollArea>
