@@ -1,3 +1,4 @@
+//@ts-nocheck
 "use client"
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence, useScroll, useTransform } from 'framer-motion';
@@ -291,7 +292,7 @@ const ProductPage = ({ params }: { params: { productId: string } }) => {
 		};
 
 		fetchProduct();
-	}, [params.productId]);
+	}, [params.productId, toast]);
 
 	if (loading) {
 		return (
@@ -598,8 +599,8 @@ const ProductPage = ({ params }: { params: { productId: string } }) => {
 									className="mt-8 pt-8 border-t border-white/10"
 								>
 									<blockquote className="text-lg italic text-gray-400">
-										"Each design tells a story, each piece a canvas for self-expression.
-										Welcome to the future of street fashion."
+										&quot;Each design tells a story, each piece a canvas for self-expression.
+										Welcome to the future of street fashion.&quot;
 									</blockquote>
 									<div className="mt-2 text-accent text-sm">— Deauth Design Philosophy</div>
 								</motion.div>

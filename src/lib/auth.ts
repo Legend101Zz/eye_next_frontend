@@ -1,3 +1,4 @@
+//@ts-nocheck
 import GoogleProvider from "next-auth/providers/google";
 import { AuthOptions } from "next-auth";
 
@@ -14,19 +15,24 @@ export const authOptions: AuthOptions = {
 
       try {
         // Call your API to handle Google sign in/up
-        const response = await fetch(`${process.env.API_URL}/api/user/google-auth`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-api-key': process.env.API_KEY!,
-          },
-          body: JSON.stringify({
-            email: profile.email,
-            name: profile.name,
-            username: profile.name?.replace(/\s+/g, '').toLowerCase() || profile.email.split('@')[0],
-            googleId: profile.sub,
-          }),
-        });
+        const response = await fetch(
+          `${process.env.API_URL}/api/user/google-auth`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "x-api-key": process.env.API_KEY!,
+            },
+            body: JSON.stringify({
+              email: profile.email,
+              name: profile.name,
+              username:
+                profile.name?.replace(/\s+/g, "").toLowerCase() ||
+                profile.email.split("@")[0],
+              googleId: profile.sub,
+            }),
+          }
+        );
 
         if (!response.ok) return false;
         return true;

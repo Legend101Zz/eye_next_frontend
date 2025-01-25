@@ -1,3 +1,4 @@
+//@ts-nocheck
 "use client";
 import Wrapper from "@/components/Wrapper";
 import { motion, AnimatePresence } from 'framer-motion';

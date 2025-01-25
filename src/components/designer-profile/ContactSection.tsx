@@ -59,7 +59,7 @@ export const ContactSection = ({ email, socialLinks }: ContactSectionProps) => {
                                 whileInView={{ opacity: 1, y: 0 }}
                                 viewport={{ once: true }}
                             >
-                                Let's Create Something Amazing Together
+                                Let&apos;s Create Something Amazing Together
                             </motion.h2>
                             <motion.p
                                 className="text-white/60 mb-8"
@@ -68,7 +68,7 @@ export const ContactSection = ({ email, socialLinks }: ContactSectionProps) => {
                                 viewport={{ once: true }}
                                 transition={{ delay: 0.1 }}
                             >
-                                Whether you have a project in mind or just want to say hello, I'd love to hear from you.
+                                Whether you have a project in mind or just want to say hello, I&apos;d love to hear from you.
                             </motion.p>
 
                             {/* Contact Buttons */}

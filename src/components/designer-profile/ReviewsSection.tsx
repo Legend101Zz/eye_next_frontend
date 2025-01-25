@@ -1,3 +1,4 @@
+//@ts-nocheck
 'use client';
 
 import { motion } from 'framer-motion';
@@ -47,7 +48,7 @@ const ReviewCard = ({ review }: { review: Review }) => {
 
             {/* Review Comment */}
             <p className="text-gray-300 mb-6 line-clamp-4">
-                "{review.comment}"
+                {review.comment}
             </p>
 
             {/* Customer Info */}

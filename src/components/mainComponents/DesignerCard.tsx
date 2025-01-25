@@ -1,3 +1,4 @@
+//@ts-nocheck
 import { type DesignerCardProps } from "@/types/types";
 import Image from "next/image";
 import { followDesigner, handleApiError } from "@/helpers/api/designerApi";

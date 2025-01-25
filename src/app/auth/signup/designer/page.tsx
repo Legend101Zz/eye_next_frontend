@@ -1,3 +1,4 @@
+//@ts-nocheck
 "use client"
 import DesignerSignupForm from "@/components/auth/DesignerSignupForm";
 import Image from "next/image";

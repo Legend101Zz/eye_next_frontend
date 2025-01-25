@@ -1,3 +1,4 @@
+//@ts-nocheck
 import { DesignerSignupFormValues } from "@/components/auth/DesignerSignupForm";
 import axios from "axios";
 

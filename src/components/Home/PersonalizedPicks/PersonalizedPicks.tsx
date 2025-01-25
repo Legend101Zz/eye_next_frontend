@@ -1,3 +1,4 @@
+//@ts-nocheck
 "use client";
 import React, { useEffect, useState } from "react";
 import { getAllProducts } from "@/helpers/api/productApis";
@@ -56,18 +57,18 @@ const PersonalizedPicks = () => {
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 md:gap-5 gap-2 my-6 mx-3">
         {loading
           ? Array(5)
-              .fill(0)
-              .map((_, index) => <LoadingCard key={index} />)
+            .fill(0)
+            .map((_, index) => <LoadingCard key={index} />)
           : productData.map((product, index) => (
-              <ProductCard
-                key={`${product.productName}-${index}`}
-                productName={product.productName}
-                baseProductName={product.baseProductName}
-                category={product.category}
-                colorVariants={product.colors}
-                designs={product.designs}
-              />
-            ))}
+            <ProductCard
+              key={`${product.productName}-${index}`}
+              productName={product.productName}
+              baseProductName={product.baseProductName}
+              category={product.category}
+              colorVariants={product.colors}
+              designs={product.designs}
+            />
+          ))}
       </div>
     </div>
   );

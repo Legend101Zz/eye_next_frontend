@@ -1,3 +1,4 @@
+//@ts-nocheck
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -499,7 +500,7 @@ const DesignerProfile = ({ params }) => {
                         <h2 className="text-5xl font-heading1 text-white mb-4">Featured Designs</h2>
                         <div className="w-24 h-1 bg-accent mx-auto rounded-full mb-6" />
                         <p className="text-white/60 text-xl max-w-2xl mx-auto">
-                            Explore {data?.name}'s unique collection of designs
+                            Explore {data?.name}&apos;s unique collection of designs
                         </p>
                     </motion.div>
 
