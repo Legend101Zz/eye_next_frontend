@@ -1,128 +1,126 @@
-import axios from "axios";
-const API_URL = process.env.API_URL || "http://localhost:8080";
-console.log("api url :", API_URL);
+import axios, { AxiosError } from "axios";
 
-export const getProductsByCategory = async ({
-  category,
-}: {
-  category: string;
-}) => {
-  let url;
-  if (category) {
-    url = `${API_URL}/api/product/images?category=${category}`;
-  } else {
-    url = `${API_URL}/api/product/images`;
-  }
+export enum Gender {
+  MALE = "male",
+  FEMALE = "female",
+  UNISEX = "unisex",
+}
 
-  // if (!category) {
-  // 	url = `${API_URL}/api/product/images`;
-  // }
-  const config = {
-    method: "GET",
-    headers: {
-      "x-api-key": "token",
-    },
-    url,
-  };
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+const API_KEY = process.env.NEXT_PUBLIC_API_KEY || "token";
 
+// Common types
+interface ApiResponse<T> {
+  success: boolean;
+  data?: T;
+  message?: string;
+}
+
+interface QueryFilters {
+  category?: string;
+  gender?: Gender;
+  productName?: string;
+  designId?: string;
+}
+
+// Create axios instance with default config
+const api = axios.create({
+  baseURL: `${API_URL}/api`,
+  headers: {
+    "x-api-key": API_KEY,
+  },
+});
+
+// Error handler utility
+const handleApiError = (error: AxiosError) => {
+  console.error("API Error:", error.response?.data || error.message);
+  throw error;
+};
+
+/**
+ * Get all products with optional filters
+ */
+export const getFilteredProducts = async (filters?: QueryFilters) => {
   try {
-    let response = await axios(config);
+    const response = await api.get("/finalproduct/list", { params: filters });
     return response.data;
   } catch (error) {
-    console.error("Error while getting product Images", error);
-    // Handle the error appropriately
-    throw error;
+    handleApiError(error as AxiosError);
   }
 };
 
-export const getCategoryColor = async ({ category }: { category: string }) => {
-  let url = `${API_URL}/api/product/getColor?category=hoodie`;
-  if (!category) {
-    console.error("no category selected");
-    throw new Error("please select a category");
-  }
-  const config = {
-    method: "GET",
-    headers: {
-      "x-api-key": "token",
-    },
-    url,
-  };
+/**
+ * Get processed images with optional filters
+ */
+export const getProcessedImages = async (filters?: QueryFilters) => {
   try {
-    let response = await axios(config);
+    const response = await api.get("/finalproduct/images", { params: filters });
     return response.data;
   } catch (error) {
-    console.error("Error while getting product colors", error);
-    // Handle the error appropriately
-    throw error;
+    handleApiError(error as AxiosError);
   }
 };
 
-export const getProduct = async ({ product_id }: { product_id: string }) => {
-  let url = `${API_URL}/api/product/read/${product_id}`;
-  if (!product_id) {
-    console.error("no category selected");
-    throw new Error("please select a category");
-  }
-  const config = {
-    method: "GET",
-    headers: {
-      "x-api-key": "token",
-    },
-    url: url || undefined,
-  };
+/**
+ * Get single product details
+ */
+export const getProductDetails = async (productId: string) => {
   try {
-    let response = await axios(config);
+    const response = await api.get(`/finalproduct/${productId}`);
     return response.data;
   } catch (error) {
-    console.error("Error while getting product colors", error);
-    // Handle the error appropriately
-    throw error;
+    handleApiError(error as AxiosError);
   }
 };
 
-//
+/**
+ * Update stock levels for a product variant
+ */
+interface StockUpdateParams {
+  groupId: string;
+  baseProductId: string;
+  color: string;
+  size: string;
+  quantity: number;
+}
 
-// http://localhost:8080/api/finalproduct/products?page=1&category=hoodie
-
-export const getAllProducts = async () => {
-  let url = `${API_URL}/api/finalproduct/products?page=1`;
-
-  const config = {
-    method: "GET",
-    headers: {
-      "x-api-key": "token",
-    },
-    url: url || undefined,
-  };
-
+export const updateProductStock = async (
+  productId: string,
+  params: StockUpdateParams
+) => {
   try {
-    let response = await axios(config);
+    const response = await api.patch(
+      `/finalproduct/${productId}/stock`,
+      params
+    );
     return response.data;
   } catch (error) {
-    console.error("Error while getting product colors", error);
-    // Handle the error appropriately
-    throw error;
+    handleApiError(error as AxiosError);
   }
 };
 
-export const getLatestProducts = async () => {
-  let url = `${API_URL}/api/finalproduct/latest`;
-
-  const config = {
-    method: "GET",
-    headers: {
-      "x-api-key": "token",
-    },
-    url: url || undefined,
-  };
-
+/**
+ * Deactivate a product
+ */
+export const deactivateProduct = async (productId: string) => {
   try {
-    let response = await axios(config);
+    const response = await api.patch(`/finalproduct/${productId}/deactivate`);
     return response.data;
   } catch (error) {
-    console.error("Error while getting product colors", error);
-    // Handle the error appropriately
-    throw error;
+    handleApiError(error as AxiosError);
   }
 };
+
+// Example usage with error handling:
+// try {
+//   const products = await getFilteredProducts({ category: 'tshirt', gender: 'MALE' });
+//   console.log(products);
+// } catch (error) {
+//   if (error instanceof AxiosError) {
+//     // Handle specific API errors
+//     console.error('API Error:', error.response?.data?.message);
+//   } else {
+//     // Handle other errors
+//     console.error('Unexpected error:', error);
+//   }
+// }

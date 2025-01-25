@@ -17,7 +17,7 @@ const About = () => {
     description:
       "Empower Your Style, Personalize Your World with Deauth: Where Designers Thrive and Your Imagination Comes Alive!",
     buttonText: "upload your design here",
-    iconUrl: "/deauthCircleIcon.png",
+    iconUrl: "/deauthCircleIcon2.png",
   };
 
   return (

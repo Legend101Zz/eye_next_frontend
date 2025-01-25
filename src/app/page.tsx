@@ -44,11 +44,11 @@ export default function Home() {
       <div className="bg-accent w-screen lg:px-32 mb-10">
         <ExploreDesigns />
       </div>
-      <Wrapper>
+      {/* <Wrapper>
         <div>
           <PersonalizedPicks />
         </div>
-      </Wrapper>
+      </Wrapper> */}
     </main>
   );
 }
