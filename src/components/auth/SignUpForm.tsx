@@ -1,4 +1,3 @@
-"use client";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { Input } from "../ui/input";
@@ -7,7 +6,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
 import { signIn } from "next-auth/react";
 import { FcGoogle } from "react-icons/fc";
-import { Loader2, Mail } from "lucide-react";
+import { Loader2, Mail, User } from "lucide-react";
 import { AuthLoadingOverlay } from "./AuthLoadingOverlay";
 
 const SignupForm = () => {
@@ -24,8 +23,10 @@ const SignupForm = () => {
 	} = useForm();
 
 	const email = watch("email", "");
+	const username = watch("username", "");
 	const emailPattern = /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i;
 	const isValidEmail = emailPattern.test(email);
+	const isValidUsername = username.length >= 3;
 
 	const onSubmit = async (data: any) => {
 		try {
@@ -39,7 +40,8 @@ const SignupForm = () => {
 					'x-api-key': process.env.NEXT_PUBLIC_API_KEY || '',
 				},
 				body: JSON.stringify({
-					email: data.email
+					email: data.email,
+					username: data.username
 				}),
 			});
 
@@ -53,7 +55,6 @@ const SignupForm = () => {
 				description: "We've sent you a password to get started. Please check your inbox.",
 			});
 
-			// Delay redirect to allow user to read the message
 			setTimeout(() => {
 				router.push('/auth/login');
 			}, 3000);
@@ -94,74 +95,112 @@ const SignupForm = () => {
 			<AuthLoadingOverlay
 				isLoading={isLoading}
 				error={error}
+				loadingMessage={"Creating Your Account..."}
 				onErrorDismiss={() => setError(null)}
 			/>
 
 			<div className="w-full space-y-6">
 				<form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-					<div className="space-y-2">
-						<div className="relative group">
-							<Input
-								{...register("email", {
-									required: "Email is required",
-									pattern: {
-										value: emailPattern,
-										message: "Please enter a valid email"
-									}
-								})}
-								placeholder="Enter your email"
-								type="email"
-								className="w-full h-11 text-white bg-black/20 border-accent/20 placeholder:text-white/40 focus:border-accent/50 transition-all duration-200"
-								disabled={isLoading}
-							/>
-							<Mail
-								className={`absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 transition-colors duration-200 ${isValidEmail ? 'text-accent' : 'text-white/20'
-									}`}
-							/>
-
-							{/* Email validation progress bar */}
-							<div className="absolute -bottom-px left-0 w-full h-[2px] bg-white/5 overflow-hidden rounded-full">
-								<motion.div
-									className="h-full bg-accent"
-									initial={{ width: "0%" }}
-									animate={{
-										width: email.includes('@') && email.includes('.') ? "100%" :
-											email.includes('@') ? "66%" :
-												email.length > 0 ? "33%" : "0%"
-									}}
-									transition={{ duration: 0.2 }}
+					<div className="space-y-4">
+						{/* Username Input */}
+						<div className="space-y-2">
+							<div className="relative group">
+								<Input
+									{...register("username", {
+										required: "Username is required",
+										minLength: {
+											value: 3,
+											message: "Username must be at least 3 characters"
+										}
+									})}
+									placeholder="Choose a username"
+									type="text"
+									className="w-full h-11 text-white bg-black/20 border-accent/20 placeholder:text-white/40 focus:border-accent/50 transition-all duration-200"
+									disabled={isLoading}
+								/>
+								<User
+									className={`absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 transition-colors duration-200 ${isValidUsername ? 'text-accent' : 'text-white/20'
+										}`}
 								/>
 							</div>
+
+							<AnimatePresence mode="wait">
+								{errors.username && (
+									<motion.p
+										initial={{ opacity: 0, y: -10 }}
+										animate={{ opacity: 1, y: 0 }}
+										exit={{ opacity: 0, y: -10 }}
+										className="text-sm text-red-500 px-1"
+									>
+										{errors.username.message as string}
+									</motion.p>
+								)}
+							</AnimatePresence>
 						</div>
 
-						<AnimatePresence mode="wait">
-							{errors.email && (
-								<motion.p
-									initial={{ opacity: 0, y: -10 }}
-									animate={{ opacity: 1, y: 0 }}
-									exit={{ opacity: 0, y: -10 }}
-									className="text-sm text-red-500 px-1"
-								>
-									{errors.email.message as string}
-								</motion.p>
-							)}
-						</AnimatePresence>
+						{/* Email Input */}
+						<div className="space-y-2">
+							<div className="relative group">
+								<Input
+									{...register("email", {
+										required: "Email is required",
+										pattern: {
+											value: emailPattern,
+											message: "Please enter a valid email"
+										}
+									})}
+									placeholder="Enter your email"
+									type="email"
+									className="w-full h-11 text-white bg-black/20 border-accent/20 placeholder:text-white/40 focus:border-accent/50 transition-all duration-200"
+									disabled={isLoading}
+								/>
+								<Mail
+									className={`absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 transition-colors duration-200 ${isValidEmail ? 'text-accent' : 'text-white/20'
+										}`}
+								/>
 
-						{/* Signup instruction */}
-						<motion.p
-							className="text-white/40 text-sm px-1"
-							initial={{ opacity: 0 }}
-							animate={{ opacity: 1 }}
-							transition={{ delay: 0.2 }}
-						>
-							We&apos;ll send you a secure password via email
-						</motion.p>
+								<div className="absolute -bottom-px left-0 w-full h-[2px] bg-white/5 overflow-hidden rounded-full">
+									<motion.div
+										className="h-full bg-accent"
+										initial={{ width: "0%" }}
+										animate={{
+											width: email.includes('@') && email.includes('.') ? "100%" :
+												email.includes('@') ? "66%" :
+													email.length > 0 ? "33%" : "0%"
+										}}
+										transition={{ duration: 0.2 }}
+									/>
+								</div>
+							</div>
+
+							<AnimatePresence mode="wait">
+								{errors.email && (
+									<motion.p
+										initial={{ opacity: 0, y: -10 }}
+										animate={{ opacity: 1, y: 0 }}
+										exit={{ opacity: 0, y: -10 }}
+										className="text-sm text-red-500 px-1"
+									>
+										{errors.email.message as string}
+									</motion.p>
+								)}
+							</AnimatePresence>
+
+							<motion.p
+								className="text-white/40 text-sm px-1"
+								initial={{ opacity: 0 }}
+								animate={{ opacity: 1 }}
+								transition={{ delay: 0.2 }}
+							>
+								We&apos;ll send you a secure password via email
+							</motion.p>
+						</div>
 					</div>
 
 					<div className="space-y-4">
 						<button
 							type="submit"
-							disabled={isLoading || !isValidEmail}
+							disabled={isLoading || !isValidEmail || !isValidUsername}
 							className="w-full h-11 rounded-full bg-accent disabled:opacity-50 disabled:hover:bg-accent hover:bg-accent/90 text-white font-medium transition-all duration-200 flex items-center justify-center gap-2"
 						>
 							{isLoading ? (
