@@ -114,8 +114,8 @@ const BestSellingSection = () => {
       </div>
 
       <div className="flex justify-center gap-2 py-3 rounded-lg shadow-sm w-full">
-        <Carousel className="w-full">
-          <CarouselContent className="justify-center items-center grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 md:gap-5 gap-2 mx-3">
+        {/* <Carousel className="w-full">
+          <CarouselContent className="justify-center items-center grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 md:gap-5 gap-2 mx-3"> */}
             {loading
               ? Array(5)
                 .fill(0)
@@ -130,10 +130,10 @@ const BestSellingSection = () => {
                   />
                 );
               })}
-          </CarouselContent>
+          {/* </CarouselContent>
           <CarouselPrevious />
           <CarouselNext />
-        </Carousel>
+        </Carousel> */}
       </div>
     </div>
   );

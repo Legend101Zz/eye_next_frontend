@@ -115,14 +115,14 @@ const Header = () => {
 	return (
 		<div
 			className={`${active ? "block" : "hidden"
-				} w-full h-[50px] md:h-[80px] flex justify-between z-20 fixed bg-white top-0 transition-all duration-500 px-5`}
+				} h-[50px] md:h-[80px] w-full flex justify-between z-20 fixed bg-white top-0 transition-all duration-500`}
 		>
 			{/* Logo Section */}
 			<div className="flex gap-2 items-center ml-5 h-full">
 				<Link href="/">
 					<div className="flex h-full max-h-full gap-2 overflow-hidden items-center">
 						<Image
-							src="/logo.jpeg"
+							src="/Deauth-Logo.png"
 							height={100}
 							width={100}
 							alt="logo"
@@ -208,20 +208,20 @@ const Header = () => {
 					{/* Profile Menu */}
 					<div onClick={toggleDropdown}>
 						<div className="w-8 md:w-12 h-8 md:h-12 rounded-full flex justify-center items-center cursor-pointer relative hover:bg-black/10">
-							<CgProfile className="text-[17px] md:text-[25px]" />
+							<CgProfile className="text-[1.5em] md:text-[25px]" />
 						</div>
 					</div>
 
 					{/* Mobile Menu Toggle */}
-					<div className="w-8 md:w-12 h-8 md:h-12 rounded-full flex md:hidden justify-center items-center hover:bg-black/[0.05] cursor-pointer relative -mr-2">
+					<div className="w-8 md:w-12 h-8 md:h-12 rounded-full flex md:hidden justify-center gap-4 items-center hover:bg-black/[0.05] cursor-pointer relative pr-1">
 						{mobileMenu ? (
 							<VscChromeClose
-								className="text-[16px]"
+								className="text-[2em]"
 								onClick={() => setMobileMenu(false)}
 							/>
 						) : (
 							<BiMenuAltRight
-								className="text-[20px]"
+								className="text-[2em]"
 								onClick={() => setMobileMenu(true)}
 							/>
 						)}

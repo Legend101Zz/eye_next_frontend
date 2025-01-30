@@ -99,7 +99,7 @@ const SearchComponent = () => {
 
 	return (
 		<div className="relative w-full max-w-3xl mx-auto">
-			<div className="flex gap-2 items-center">
+			<div className="flex gap-2 items-center invisible md:visible">
 				{/* Category Filter */}
 				<Select
 					value={selectedCategory}
