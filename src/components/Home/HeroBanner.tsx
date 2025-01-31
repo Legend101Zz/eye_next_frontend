@@ -8,32 +8,52 @@ import {
   CarouselNext,
   CarouselPrevious,
 } from "@/components/ui/carousel";
-
+import { useMediaQuery } from 'react-responsive';
 const HeroBanner = () => {
+  // @ts-ignore
+  const isDesktopOrLaptop = useMediaQuery({ minWidth: 1224 });
+  const isTabletOrMobile = useMediaQuery({ maxWidth: 1224 });
+  console.log("size", isTabletOrMobile);
   return (
-    <div className="w-screen h-fit relative	">
-      <Carousel className="w-full  ">
+    <div className="w-full h-full mt-[3em]	">
+      {/* <Carousel className="w-full  ">
         <CarouselContent className="">
-          <CarouselItem>
-            <Image
+          <CarouselItem> */}
+      {
+        isTabletOrMobile && (
+          <Image
+            src="/Deauth-Mobile-Hero-Banner.png"
+            alt="Hero Banner"
+            width={600}
+            height={600}
+            className="object-fill"
+          />
+        )
+      }
+      {
+        isDesktopOrLaptop && (
+          <Image
+            src={"/bannerImage.png"}
+            alt="haha"
+            width={2000}
+            height={2000}
+            className="object-fill"
+          />
+        )
+      }
+
+      {/* </CarouselItem> */}
+      {/* // <CarouselItem> */}
+      {/* <Image
               src={"/bannerImage.png"}
               alt="haha"
               width={2000}
               height={2000}
               className="object-fill"
-            />
-          </CarouselItem>
-          <CarouselItem>
-            <Image
-              src={"/bannerImage.png"}
-              alt="haha"
-              width={2000}
-              height={2000}
-              className="object-fill"
-            />
-          </CarouselItem>
+            /> */}
+      {/* </CarouselItem>
         </CarouselContent>
-      </Carousel>
+      </Carousel> */}
     </div>
   );
 };

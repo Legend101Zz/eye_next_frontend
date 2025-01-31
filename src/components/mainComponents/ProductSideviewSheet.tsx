@@ -49,26 +49,26 @@ export function ProductSideviewSheet({
   return (
     <Sheet>
       <SheetTrigger asChild>
-        <Button variant="ghost" className="rounded-full">
+        <Button variant="ghost" className="rounded-full p-4">
           <EyeIcon />
         </Button>
       </SheetTrigger>
       <SheetContent className="bg-black text-base-content border-none">
         <SheetHeader>
-          <SheetTitle className="text-white m-2 font-bold">
+          <SheetTitle className="text-white m-2 font-bold font-heading1">
             {category}
           </SheetTitle>
         </SheetHeader>
-        <div className="du-card du-card-compact w-3/4 ">
-          <figure className="">
+        <div className="du-card du-card-compact w-3/4 font-heading1 mx-auto  ">
+          <div>
             <Image src={imageUrl} alt="rpod" width={1000} height={1000}></Image>
-          </figure>
-          <div className="du-card-body flex flex-col gap-3">
-            <div className="du-card-title">{title}</div>
+          </div>
+          <div className=" flex flex-col gap-3">
+            <div className="text-4xl">{title}</div>
             <div className="text-sm text-muted-foreground">
               {"by " + artistName}
             </div>
-            <div className="du-card-price text-primary">{"$" + price}</div>
+            <div className="du-card-price text-4xl font-extrabold text-primary">{"₹ " + price}</div>
 
             {/* colour select buttons  */}
             <div className="du-carousel bg-transparent gap-2 ">
