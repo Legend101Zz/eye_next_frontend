@@ -166,7 +166,7 @@ export const useCanvas = () => {
             fabricImage.scale(scale);
 
             // Apply color and center the mockup
-            applyColorToMockup(fabricImage, garmentColor);
+            // applyColorToMockup(fabricImage, garmentColor);
             fabricImage.center();
 
             canvas.add(fabricImage);
