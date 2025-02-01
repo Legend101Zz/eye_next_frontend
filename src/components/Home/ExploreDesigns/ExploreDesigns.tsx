@@ -39,7 +39,7 @@ const ExploreDesigns = () => {
 
       {/* Carousel */}
       <div className="flex justify-center gap-2 py-3 mt-5 rounded-lg w-full">
-        <Carousel className="w-full">
+        {/* <Carousel className="w-full">
           <CarouselContent className="gap-5 lg:gap-10 px-5 md:px-8 lg:px-10">
             {loading || designs.length === 0 ? (
               // Loading state
@@ -71,7 +71,7 @@ const ExploreDesigns = () => {
           </CarouselContent>
           <CarouselPrevious />
           <CarouselNext />
-        </Carousel>
+        </Carousel> */}
       </div>
 
       {/* Error state with retry button */}
