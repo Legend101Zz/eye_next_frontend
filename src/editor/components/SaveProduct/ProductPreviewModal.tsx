@@ -36,8 +36,8 @@ import { Badge } from "@/components/ui/badge";
 // Constants for canvas dimensions
 const CANVAS_DIMENSIONS = {
     preview: {
-        width: 500,
-        height: 600
+        width: 1200,
+        height: 1440
     },
     main: {
         width: 500,
@@ -52,17 +52,117 @@ interface DesignState {
 }
 
 
-// Helper function to properly scale positions and dimensions
-const scaleDesignTransform = (design, sourceCanvas, targetCanvas) => {
-    const scaleX = targetCanvas.width / sourceCanvas.width;
-    const scaleY = targetCanvas.height / sourceCanvas.height;
+// Utility function to optimize image size
+const optimizeImage = async (dataUrl: string, maxSizeMB = 2): Promise<string> => {
+    const getImageSize = (dataUrl: string) => {
+        const base64Length = dataUrl.split(',')[1].length;
+        return (base64Length * 3) / 4;
+    };
 
+    // Convert base64 to Blob for processing
+    const base64Response = await fetch(dataUrl);
+    let blob = await base64Response.blob();
+
+    // If size is already under maxSizeMB, return original
+    if (blob.size <= maxSizeMB * 1024 * 1024) {
+        return dataUrl;
+    }
+
+    // Create temporary canvas for resizing
+    const img = new Image();
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+
+    await new Promise((resolve) => {
+        img.onload = resolve;
+        img.src = dataUrl;
+    });
+
+    // Start with original dimensions
+    let width = img.width;
+    let height = img.height;
+    let quality = 0.9; // Start with high quality
+
+    // First try just reducing quality
+    canvas.width = width;
+    canvas.height = height;
+    ctx.drawImage(img, 0, 0, width, height);
+
+    let optimizedDataUrl = canvas.toDataURL('image/png', quality);
+    let currentSize = getImageSize(optimizedDataUrl);
+
+    // If still too large, reduce dimensions while maintaining aspect ratio
+    while (currentSize > maxSizeMB * 1024 * 1024 && width > 800) { // Don't go below 800px width
+        width *= 0.9;
+        height *= 0.9;
+
+        canvas.width = width;
+        canvas.height = height;
+        ctx.drawImage(img, 0, 0, width, height);
+
+        optimizedDataUrl = canvas.toDataURL('image/png', quality);
+        currentSize = getImageSize(optimizedDataUrl);
+    }
+
+    // Log final optimized size
+    console.log('Optimized Image Details:', {
+        width,
+        height,
+        quality,
+        sizeInMB: (currentSize / (1024 * 1024)).toFixed(2) + ' MB'
+    });
+
+    return optimizedDataUrl;
+};
+
+// Utility function to convert relative coordinates to absolute
+const convertToRelativePosition = (position: { x: number, y: number }, canvasDimensions: { width: number, height: number }) => {
+    return {
+        x: position.x / canvasDimensions.width,
+        y: position.y / canvasDimensions.height
+    };
+};
+
+// Utility function to convert relative coordinates back to absolute
+const convertToAbsolutePosition = (relativePosition: { x: number, y: number }, canvasDimensions: { width: number, height: number }) => {
+    return {
+        x: relativePosition.x * canvasDimensions.width,
+        y: relativePosition.y * canvasDimensions.height
+    };
+};
+
+
+// Helper function to properly scale positions and dimensions
+const scaleDesignTransform = (
+    design: Design,
+    sourceCanvas: { width: number, height: number },
+    targetCanvas: { width: number, height: number }
+) => {
+    // Convert current position to relative coordinates
+    const relativePosition = convertToRelativePosition(
+        design.transform.position,
+        sourceCanvas
+    );
+
+    // Convert relative position to target canvas coordinates
+    const scaledPosition = convertToAbsolutePosition(
+        relativePosition,
+        targetCanvas
+    );
+
+    // Calculate scale ratio between canvases
+    const scaleRatio = Math.min(
+        targetCanvas.width / sourceCanvas.width,
+        targetCanvas.height / sourceCanvas.height
+    );
+
+    // Return scaled transform
     return {
         position: {
-            x: design.transform.position.x * scaleX,
-            y: design.transform.position.y * scaleY
+            x: scaledPosition.x,
+            y: scaledPosition.y
         },
-        scale: design.transform.scale * scaleX,
+        scale: design.transform.scale * scaleRatio,
         rotation: design.transform.rotation
     };
 };
@@ -284,12 +384,24 @@ export const ProductPreviewModal = () => {
             const product = availableProducts.find(p => p.id === productId);
             if (!product) return null;
 
-            // Create a temporary canvas
+            // Create a temporary canvas with higher DPI settings
             const tempCanvas = document.createElement('canvas');
+            const ctx = tempCanvas.getContext('2d');
+            const dpr = Math.min(window.devicePixelRatio || 1, 2); // Cap DPR at 2
+
+            // Set canvas dimensions with DPI scaling
             tempCanvas.width = CANVAS_DIMENSIONS.preview.width;
             tempCanvas.height = CANVAS_DIMENSIONS.preview.height;
 
-            const fabricCanvas = new fabric.Canvas(tempCanvas);
+            // Scale the context for high DPI
+            ctx.scale(dpr, dpr);
+
+            // Initialize Fabric canvas with high-quality settings
+            const fabricCanvas = new fabric.Canvas(tempCanvas, {
+                enableRetinaScaling: true,
+                imageSmoothingQuality: 'high',
+                preserveObjectStacking: true
+            });
 
             // Load mockup image
             const mockupUrl = product.images[garmentColor]?.[view];
@@ -313,13 +425,14 @@ export const ProductPreviewModal = () => {
                         left: 0,
                         top: 0,
                         selectable: false,
-                        evented: false
+                        evented: false,
+                        quality: 1
                     });
 
                     fabricCanvas.add(mockupImg);
                     fabricCanvas.sendToBack(mockupImg);
                     resolve();
-                }, { crossOrigin: 'anonymous' });
+                }, { crossOrigin: 'anonymous', quality: 1 });
             });
 
             // Load and position designs
@@ -357,7 +470,8 @@ export const ProductPreviewModal = () => {
 
                             img.set({
                                 globalCompositeOperation: compositeOperation,
-                                opacity: design.opacity || 1
+                                opacity: design.opacity || 1, quality: 1,
+                                imageSmoothingQuality: 'high'
                             });
                         };
 
@@ -378,7 +492,9 @@ export const ProductPreviewModal = () => {
                             originX: 'center',
                             originY: 'center',
                             selectable: false,
-                            evented: false
+                            evented: false,
+                            quality: 1,
+                            imageSmoothingQuality: 'high'
                         });
 
                         // Apply blend mode and opacity
@@ -386,17 +502,46 @@ export const ProductPreviewModal = () => {
 
                         fabricCanvas.add(img);
                         resolve();
-                    }, { crossOrigin: 'anonymous' });
+                    }, { crossOrigin: 'anonymous', quality: 1 });
                 });
             }));
 
-            // Render the canvas
+            // Render with high-quality settings
+            fabricCanvas.setZoom(1);
             fabricCanvas.renderAll();
-            const dataUrl = fabricCanvas.toDataURL({
+
+            // Export with maximum quality
+            let dataUrl = fabricCanvas.toDataURL({
                 format: 'png',
-                quality: 1
+                quality: 1,
+                multiplier: dpr,
             });
 
+            // Optimize the image
+            dataUrl = await optimizeImage(dataUrl, 2); // 2MB max size
+
+            //Utility function to checking size of image
+
+            const checkImageSize = (dataUrl: string) => {
+                // Get size in bytes
+                const base64Length = dataUrl.split(',')[1].length;
+                const sizeInBytes = (base64Length * 3) / 4;
+                const sizeInMB = sizeInBytes / (1024 * 1024);
+
+                // Log sizes
+                console.log('Image Details:', {
+                    sizeInBytes,
+                    sizeInMB: sizeInMB.toFixed(2) + ' MB',
+                    width: fabricCanvas.width,
+                    height: fabricCanvas.height,
+                    dpr: dpr,
+                    totalPixels: fabricCanvas.width * fabricCanvas.height
+                });
+
+                return dataUrl;
+            };
+
+            checkImageSize(dataUrl);
             // Clean up
             fabricCanvas.dispose();
 
@@ -405,7 +550,7 @@ export const ProductPreviewModal = () => {
             console.error(`Error generating ${view} preview:`, error);
             return null;
         }
-    }, [availableProducts, designsByView, garmentColor]);
+    }, [availableProducts, designStates, designsByView, garmentColor]);
 
 
     const generatePreviews = async (productId: string) => {

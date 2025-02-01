@@ -3,11 +3,18 @@ import React from 'react';
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Reorder, useDragControls, motion } from 'framer-motion';
-import { Layers, Eye, EyeOff, Lock, Unlock, GripVertical, ArrowUpCircle, ArrowDownCircle, MoveUp, MoveDown } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Layers, Eye, EyeOff, Lock, Unlock, ArrowUpCircle, ArrowDownCircle, Info } from 'lucide-react';
 import { useEditor } from '../../store/editorStore';
 import { Design } from '../../types/editor.types';
 import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from "@/components/ui/tooltip"
 
 interface LayerItemProps {
     design: Design;
@@ -15,11 +22,20 @@ interface LayerItemProps {
     onSelect: () => void;
     totalLayers: number;
     index: number;
+    onMoveUp: () => void;
+    onMoveDown: () => void;
 }
 
-const LayerItem: React.FC<LayerItemProps> = ({ design, isActive, onSelect, totalLayers, index }) => {
+const LayerItem: React.FC<LayerItemProps> = ({
+    design,
+    isActive,
+    onSelect,
+    totalLayers,
+    index,
+    onMoveUp,
+    onMoveDown
+}) => {
     const { updateDesignProperties } = useEditor();
-    const dragControls = useDragControls();
 
     const handlePropertyUpdate = (updates: Partial<Design>) => {
         const designId = design.id || design._id;
@@ -49,8 +65,8 @@ const LayerItem: React.FC<LayerItemProps> = ({ design, isActive, onSelect, total
 
     // Calculate layer level badge text
     const getLayerLabel = () => {
-        if (index === 0) return 'Top';
-        if (index === totalLayers - 1) return 'Bottom';
+        if (index === 0) return 'Front';
+        if (index === totalLayers - 1) return 'Back';
         return `Layer ${totalLayers - index}`;
     };
 
@@ -61,13 +77,12 @@ const LayerItem: React.FC<LayerItemProps> = ({ design, isActive, onSelect, total
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 10 }}
             className={`
-                p-3 rounded-lg border-2 mb-2 cursor-grab active:cursor-grabbing
+                p-4 rounded-lg border-2 mb-2 relative
                 ${isActive ? 'border-primary bg-primary/5' : 'border-border'}
-                hover:bg-accent/50 transition-all relative
+                hover:bg-accent/50 transition-all
                 ${design.locked ? 'opacity-75' : ''}
             `}
             onClick={onSelect}
-            onPointerDown={(e) => dragControls.start(e)}
         >
             {/* Layer position indicator */}
             <Badge
@@ -78,12 +93,7 @@ const LayerItem: React.FC<LayerItemProps> = ({ design, isActive, onSelect, total
             </Badge>
 
             <div className="flex items-center gap-3">
-                <div className="flex flex-col items-center gap-1">
-                    <GripVertical className="h-4 w-4 text-muted-foreground cursor-grab active:cursor-grabbing" />
-                    {index > 0 && <MoveUp className="h-3 w-3 text-muted-foreground opacity-50" />}
-                    {index < totalLayers - 1 && <MoveDown className="h-3 w-3 text-muted-foreground opacity-50" />}
-                </div>
-
+                {/* Design Preview */}
                 <div className="w-16 h-16 bg-accent/10 rounded overflow-hidden shadow-sm">
                     <img
                         src={design.imageUrl}
@@ -96,41 +106,58 @@ const LayerItem: React.FC<LayerItemProps> = ({ design, isActive, onSelect, total
                     />
                 </div>
 
+                {/* Layer Controls */}
                 <div className="flex-1 min-w-0 space-y-2">
                     <div className="flex justify-between items-center">
                         <span className="text-sm font-medium truncate pr-2">
                             {design.name || 'Unnamed Design'}
                         </span>
                         <div className="flex gap-1 flex-shrink-0">
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-6 w-6"
-                                onClick={handleVisibilityToggle}
-                                title={design.visible !== false ? "Hide" : "Show"}
-                            >
-                                {design.visible !== false ? (
-                                    <Eye className="h-4 w-4" />
-                                ) : (
-                                    <EyeOff className="h-4 w-4" />
-                                )}
-                            </Button>
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-6 w-6"
-                                onClick={handleLockToggle}
-                                title={design.locked ? "Unlock" : "Lock"}
-                            >
-                                {design.locked ? (
-                                    <Lock className="h-4 w-4" />
-                                ) : (
-                                    <Unlock className="h-4 w-4" />
-                                )}
-                            </Button>
+                            <TooltipProvider>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-7 w-7"
+                                            onClick={handleVisibilityToggle}
+                                        >
+                                            {design.visible !== false ? (
+                                                <Eye className="h-4 w-4" />
+                                            ) : (
+                                                <EyeOff className="h-4 w-4" />
+                                            )}
+                                        </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                        {design.visible !== false ? "Hide layer" : "Show layer"}
+                                    </TooltipContent>
+                                </Tooltip>
+
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-7 w-7"
+                                            onClick={handleLockToggle}
+                                        >
+                                            {design.locked ? (
+                                                <Lock className="h-4 w-4" />
+                                            ) : (
+                                                <Unlock className="h-4 w-4" />
+                                            )}
+                                        </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                        {design.locked ? "Unlock layer" : "Lock layer"}
+                                    </TooltipContent>
+                                </Tooltip>
+                            </TooltipProvider>
                         </div>
                     </div>
 
+                    {/* Blend Mode and Opacity Controls */}
                     <div className="flex gap-2">
                         <Select
                             value={design.blendMode || 'normal'}
@@ -166,6 +193,41 @@ const LayerItem: React.FC<LayerItemProps> = ({ design, isActive, onSelect, total
                             </SelectContent>
                         </Select>
                     </div>
+
+                    {/* Layer Movement Controls */}
+                    <div className="flex justify-end gap-1 pt-1">
+                        <TooltipProvider>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-7 w-7"
+                                        onClick={onMoveUp}
+                                        disabled={index === 0 || design.locked}
+                                    >
+                                        <ArrowUpCircle className="h-4 w-4" />
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Move layer up</TooltipContent>
+                            </Tooltip>
+
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-7 w-7"
+                                        onClick={onMoveDown}
+                                        disabled={index === totalLayers - 1 || design.locked}
+                                    >
+                                        <ArrowDownCircle className="h-4 w-4" />
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Move layer down</TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
+                    </div>
                 </div>
             </div>
         </motion.div>
@@ -183,12 +245,22 @@ export const LayerPanel: React.FC = () => {
 
     const designs = designsByView[activeView];
 
-    const handleReorder = (newOrder: Design[]) => {
-        const updatedDesigns = newOrder.map((design, index) => ({
-            ...design,
-            zIndex: newOrder.length - index
-        }));
-        reorderDesigns(activeView, updatedDesigns);
+    const moveLayer = (currentIndex: number, direction: 'up' | 'down') => {
+        const newDesigns = [...designs];
+        const newIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+
+        if (newIndex >= 0 && newIndex < designs.length) {
+            const [movedItem] = newDesigns.splice(currentIndex, 1);
+            newDesigns.splice(newIndex, 0, movedItem);
+
+            // Update zIndex values
+            const updatedDesigns = newDesigns.map((design, index) => ({
+                ...design,
+                zIndex: newDesigns.length - index
+            }));
+
+            reorderDesigns(activeView, updatedDesigns);
+        }
     };
 
     return (
@@ -202,36 +274,30 @@ export const LayerPanel: React.FC = () => {
             </div>
 
             {designs.length > 0 && (
-                <p className="text-xs text-black mb-4">
-                    Drag layers to reorder. Top layer appears in front.
-                </p>
+                <Alert className="mb-4">
+                    <Info className="h-4 w-4" />
+                    <AlertDescription>
+                        Use the up/down arrows to change layer order. Top layers appear in front.
+                    </AlertDescription>
+                </Alert>
             )}
 
-            <Reorder.Group
-                axis="y"
-                values={designs}
-                onReorder={handleReorder}
-                className="space-y-2"
-            >
+            <AnimatePresence mode="sync">
                 {[...designs]
                     .sort((a, b) => (b.zIndex || 0) - (a.zIndex || 0))
                     .map((design, index) => (
-                        <Reorder.Item
+                        <LayerItem
                             key={design.id || design._id}
-                            value={design}
-                            className="touch-none"
-                            dragListener={!design.locked}
-                        >
-                            <LayerItem
-                                design={design}
-                                isActive={(design.id || design._id) === activeDesignId}
-                                onSelect={() => setActiveDesign(design.id || design._id)}
-                                totalLayers={designs.length}
-                                index={index}
-                            />
-                        </Reorder.Item>
+                            design={design}
+                            isActive={(design.id || design._id) === activeDesignId}
+                            onSelect={() => setActiveDesign(design.id || design._id)}
+                            totalLayers={designs.length}
+                            index={index}
+                            onMoveUp={() => moveLayer(index, 'up')}
+                            onMoveDown={() => moveLayer(index, 'down')}
+                        />
                     ))}
-            </Reorder.Group>
+            </AnimatePresence>
 
             {designs.length === 0 && (
                 <div className="text-center py-8 text-muted-foreground">

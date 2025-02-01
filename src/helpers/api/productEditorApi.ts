@@ -49,12 +49,13 @@ export const getClothingProducts = async (
   }
 };
 
+// will append it further to allow designer use more than 10 designs at a time
 export const getDesignerDesigns = async (designerId: string) => {
   try {
     const response = await axios({
       method: "GET",
       headers: DEFAULT_HEADERS,
-      url: `${API_URL}/api/designer/design-images/${designerId}`,
+      url: `${API_URL}/api/designer/design-images/${designerId}?isVerified=true&limit=10`,
     });
     return response.data;
   } catch (error) {
