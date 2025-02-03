@@ -17,7 +17,7 @@ import DesignerCard from "@/components/mainComponents/DesignerCard";
 const Designers = () => {
   const { designerData, loading, error, refreshData } = useDesignerPhotos();
   const { toast } = useToast();
-
+  console.log('checking', designerData)
   // Show error toast if there's an error
   React.useEffect(() => {
     if (error) {
@@ -62,7 +62,7 @@ const Designers = () => {
                   <DesignerCard
                     totalDesigns={designer.totalDesigns}
                     designerFollowers={designer.followers}
-                    designImageUrl={designer.Designs[0]?.designImage[0]?.url || ""}
+                    coverImageUrl={designer.coverImage?.url || ""}
                     profileImageUrl={designer.profileImage?.url || ""}
                     designerName={designer.artistName || designer.fullname}
                     designerId={designer._id}

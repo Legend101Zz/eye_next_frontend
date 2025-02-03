@@ -8,36 +8,32 @@ import { useState } from "react";
 import { Button } from "../ui/button";
 import { useToast } from "@/components/ui/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
+import { motion } from "framer-motion";
+import { Eye, Sparkles, Palette } from "lucide-react";
 
 export default function DesignerCard({
-  designImageUrl,
+  coverImageUrl,
   profileImageUrl,
   designerName,
   designerId,
   designerFollowers,
   totalDesigns,
 }: DesignerCardProps) {
-  // Hooks
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
-
-  // Local state
   const [isFollowing, setIsFollowing] = useState(false);
   const [followLoading, setFollowLoading] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
 
-  // Handle image loading error
   const handleImageError = (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
-    const fallbackImage = "/placeholder-image.png"; // Add a fallback image path
+    const fallbackImage = "/deauthCircleIcon2.png";
     e.currentTarget.src = fallbackImage;
   };
 
-  // Handle follow action
   const handleFollow = async () => {
-    // Don't proceed if already following or auth is loading
     if (followLoading || authLoading || isFollowing) return;
 
-    // Redirect to login if user is not authenticated
     if (!user) {
       toast({
         title: "Authentication Required",
@@ -68,86 +64,158 @@ export default function DesignerCard({
     }
   };
 
-  // Handle loading state
   if (authLoading) {
     return <DesignerCardSkeleton />;
   }
 
   return (
-    <div className="h-[22em] w-[15em] flex flex-col gap-5">
-      {/* Design Image */}
-      <div className="rounded-t-lg h-[10em] w-[15em] relative mb-5">
-        <div className="w-full overflow-hidden">
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+      className="h-[22em] w-[15em] flex flex-col bg-secondary rounded-lg relative group"
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
+      {/* Decorative Elements */}
+      <div className="absolute -inset-0.5 bg-gradient-to-r from-primary to-ring opacity-0 group-hover:opacity-100 rounded-lg blur transition duration-500" />
+
+      {/* Main Content Container */}
+      <div className="relative flex flex-col w-full h-full bg-secondary rounded-lg">
+        {/* Cover Image Container */}
+        <div className="rounded-t-lg h-[10em] w-full relative overflow-hidden">
           <Image
-            alt={`Design by ${designerName}`}
-            src={designImageUrl}
+            alt={`Cover by ${designerName}`}
+            src={coverImageUrl}
             fill
+            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
             priority
-            style={{ objectFit: "fill" }}
-            className="rounded-t-lg"
-            onError={handleImageError}
-          />
-        </div>
-        {/* Profile Image */}
-        <div className="overflow-hidden rounded-full w-16 h-16 absolute top-[70%] right-[35%] shadow-lg">
-          <Image
-            alt={`${designerName}'s profile`}
-            src={profileImageUrl}
-            fill
             style={{ objectFit: "cover" }}
+            className="transition-all duration-300"
             onError={handleImageError}
           />
-        </div>
-      </div>
 
-      {/* Designer Info */}
-      <div className="max-h-full w-full flex flex-col gap-2 text-black">
-        <div className="text-center text-xl font-heading1">
-          {designerName}
-        </div>
-        <div className="flex flex-row gap-2 w-fit mx-auto text-black text-sm tracking-tight px-3">
-          <div className="text-center">
-            {designerFollowers.toLocaleString()} followers
-          </div>
-          <div className="text-center">
-            {totalDesigns.toLocaleString()} designs
-          </div>
+          {/* Hover Overlay with Animated Border */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: isHovered ? 1 : 0 }}
+            className="absolute inset-0 bg-gradient-to-b from-transparent via-secondary/20 to-secondary/80"
+          />
         </div>
 
-        {/* Follow Button */}
-        <div className="w-fit mx-auto">
-          <Button
-            className="bg-transparent rounded-full border-muted hover:bg-accent hover:text-black hover:border-0 transition-all duration-75 border-2 relative"
-            onClick={handleFollow}
-            disabled={followLoading || isFollowing || authLoading}
+        {/* Profile Image Container */}
+        <motion.div
+          className="absolute left-[38%] -translate-x-1/2 -translate-y-1/2 top-[8.5em]"
+          whileHover={{ scale: 1.5 }}
+        >
+          <div className="relative">
+            {/* Rotating Border Effect */}
+            <div className="absolute inset-0 rounded-full bg-gradient-to-r from-primary via-ring to-primary animate-spin-slow"
+              style={{ padding: '3px', animation: 'spin 4s linear infinite' }} />
+
+            {/* Profile Image */}
+            <div className="w-16 h-16 rounded-full overflow-hidden relative bg-secondary p-0.5">
+              <Image
+                alt={`${designerName}'s profile`}
+                src={profileImageUrl}
+                fill
+                sizes="64px"
+                style={{ objectFit: "cover" }}
+                className="rounded-full"
+                onError={handleImageError}
+              />
+            </div>
+          </div>
+        </motion.div>
+
+        {/* Designer Info */}
+        <div className="flex flex-col items-center mt-12 px-4 space-y-3">
+          <motion.h3
+            className="font-heading1 text-xl text-primary-content group-hover:text-primary transition-colors duration-300"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.2 }}
           >
-            {isFollowing ? "Following" : "Follow"}
-            {followLoading && (
-              <div className="absolute inset-0 flex items-center justify-center bg-black/20 rounded-full">
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-              </div>
-            )}
-          </Button>
+            {designerName}
+          </motion.h3>
+
+          {/* Stats Container */}
+          <motion.div
+            className="flex items-center gap-4 text-sm text-neutral"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.3 }}
+          >
+            <div className="flex items-center gap-1">
+              <Palette className="w-4 h-4 text-primary" />
+              <span>{totalDesigns.toLocaleString()}</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <Eye className="w-4 h-4 text-primary" />
+              <span>{designerFollowers.toLocaleString()}</span>
+            </div>
+          </motion.div>
+
+          {/* Follow Button */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.4 }}
+            className="w-full max-w-[80%] mt-2"
+          >
+            <Button
+              className={`
+                w-full relative overflow-hidden group
+                ${isFollowing
+                  ? 'bg-success hover:bg-success/90'
+                  : 'bg-primary hover:bg-primary/90'} 
+                text-primary-content rounded-full transition-all duration-300
+                hover:shadow-lg hover:shadow-primary/20
+              `}
+              onClick={handleFollow}
+              disabled={followLoading || isFollowing || authLoading}
+            >
+              <span className="flex items-center justify-center gap-2">
+                {isFollowing ? (
+                  <>
+                    <Sparkles className="w-4 h-4" />
+                    Following
+                  </>
+                ) : (
+                  'Follow'
+                )}
+              </span>
+              {followLoading && (
+                <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+                  <div className="w-4 h-4 border-2 border-primary-content border-t-transparent rounded-full animate-spin" />
+                </div>
+              )}
+            </Button>
+          </motion.div>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }
 
-// Loading skeleton component
 function DesignerCardSkeleton() {
   return (
-    <div className="h-[22em] w-[15em] flex flex-col gap-5">
-      <div className="rounded-t-lg h-[10em] w-[15em] relative mb-5">
+    <div className="h-[22em] w-[15em] flex flex-col bg-secondary rounded-lg p-4">
+      <div className="rounded-t-lg h-[10em] w-full relative mb-8">
         <Skeleton className="w-full h-full rounded-lg" />
-        <div className="overflow-hidden rounded-full w-16 h-16 absolute top-[70%] right-[35%]">
-          <Skeleton className="w-full h-full rounded-full" />
+        <div className="absolute left-1/2 -translate-x-1/2 top-[calc(100%-2rem)]">
+          <div className="w-16 h-16 overflow-hidden rounded-full">
+            <Skeleton className="w-full h-full rounded-full" />
+          </div>
         </div>
       </div>
-      <div className="max-h-full w-full flex flex-col gap-2">
-        <Skeleton className="h-6 w-3/4 mx-auto" />
-        <Skeleton className="h-4 w-1/2 mx-auto" />
-        <Skeleton className="h-8 w-24 mx-auto rounded-full" />
+      <div className="flex flex-col items-center gap-4 mt-4">
+        <Skeleton className="h-6 w-32" />
+        <div className="flex gap-4">
+          <Skeleton className="h-4 w-16" />
+          <Skeleton className="h-4 w-16" />
+        </div>
+        <Skeleton className="h-10 w-32 rounded-full" />
       </div>
     </div>
   );

@@ -22,7 +22,7 @@ const ImageWithFallback = ({
     return (
         <div className={cn("relative overflow-hidden", className)}>
             <Image
-                src={error ? '/placeholder-image.png' : src}
+                src={error ? '/deauthCircleIcon2.png' : src}
                 alt={alt}
                 width={width}
                 height={height}

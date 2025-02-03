@@ -117,7 +117,9 @@ export const useDesignerPhotos = () => {
         _id: designer.designerId,
         fullname: designer.designerName,
       }));
-
+      // console.log("designerData", formattedData);
+      
+      // console.log("designerData22", data);
       setDesignerData(formattedData);
     } catch (err) {
       const handledError = handleApiError(err);

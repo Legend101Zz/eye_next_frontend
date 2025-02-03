@@ -142,13 +142,13 @@ const BestSellingSection = () => {
         >
           {loading
             ? Array(5)
-                .fill(0)
-                .map((_, index) => <LoadingCard key={index} />)
+              .fill(0)
+              .map((_, index) => <LoadingCard key={index} />)
             : products.map((product) => {
-                const formattedProduct = formatProductForCard(product);
-                if (!formattedProduct) return null;
-                return <ProductCard key={product.id} {...formattedProduct} />;
-              })}
+              const formattedProduct = formatProductForCard(product);
+              if (!formattedProduct) return null;
+              return <ProductCard key={product.id} {...formattedProduct} />;
+            })}
         </Carousel>
       </div>
     </div>
