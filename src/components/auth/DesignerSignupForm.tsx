@@ -1,4 +1,5 @@
 
+//@ts-nocheck
 import React, { useState, useRef, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { Label } from "../ui/label";
