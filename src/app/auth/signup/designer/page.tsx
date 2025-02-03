@@ -110,14 +110,14 @@ const DesignerSignupPage = () => {
 					transition={{ duration: 0.8 }}
 					className="relative lg:w-1/2 bg-black min-h-[40vh] lg:min-h-screen overflow-hidden"
 				>
-					<div className="absolute inset-0 bg-gradient-to-br from-black/40 to-black/80">
+					<div className="absolute inset-0 bg-gradient-to-br from-white/40 to-black/80">
 						<Image
 							src="/logo.jpeg"
 							alt="Designer signup background"
 							fill
 							sizes="(max-width: 768px) 100vw, 50vw"
 							priority
-							className="opacity-60 mix-blend-overlay transform scale-110 hover:scale-105 transition-transform duration-700 object-cover"
+							className="opacity-60 mix-blend-overlay transform scale-100 hover:scale-105 transition-transform duration-700 object-cover"
 						/>
 					</div>
 					<div className="relative z-10 flex flex-col justify-center p-8 lg:p-16 h-full">

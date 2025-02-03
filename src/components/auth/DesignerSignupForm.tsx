@@ -1,5 +1,5 @@
-//@ts-nocheck
-import React, { useState, useRef } from "react";
+
+import React, { useState, useRef, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { Label } from "../ui/label";
 import { Input } from "../ui/input";
@@ -10,6 +10,8 @@ import { toast } from "../ui/use-toast";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
+import ImageUploader from "./ImageUploader";
+
 
 enum AddressType {
 	HOME = 'home',
@@ -38,10 +40,9 @@ export type DesignerSignupFormValues = {
 
 const DesignerSignupForm = () => {
 	const router = useRouter();
-	const profilePhotoRef = useRef<File | null>(null);
-	const coverPhotoRef = useRef<File | null>(null);
 	const [activeSection, setActiveSection] = useState<string>("images");
-	const [dragActive, setDragActive] = useState(false);
+	const [profileImage, setProfileImage] = useState(null);
+	const [coverImage, setCoverImage] = useState(null);
 
 	const {
 		register,
@@ -60,69 +61,24 @@ const DesignerSignupForm = () => {
 	const userId = typeof window !== "undefined" ? sessionStorage.getItem("userID") : null;
 
 	// Handle image upload via input change
-	const handlePhotoChange = (event: React.ChangeEvent<HTMLInputElement>, type: 'profile' | 'cover') => {
-		console.log('handlePhotoChange', event.target)
-		const file = event.target.files?.[0];
-		handleFileUpload(file, type);
+	const handleProfileImage = ({ file, previewUrl }) => {
+		setProfileImage({ file, previewUrl });
+		clearErrors('profilePhoto');
 	};
 
-	// Handle drag and drop
-	const handleDragOver = (e: React.DragEvent) => {
-		e.preventDefault();
-		setDragActive(true);
+	const handleCoverImage = ({ file, previewUrl }) => {
+		setCoverImage({ file, previewUrl });
+		clearErrors('coverPhoto');
 	};
 
-	const handleDragLeave = (e: React.DragEvent) => {
-		e.preventDefault();
-		setDragActive(false);
+	const handleRemoveProfile = () => {
+		setProfileImage(null);
 	};
 
-	const handleDrop = (e: React.DragEvent, type: 'profile' | 'cover') => {
-		e.preventDefault();
-		setDragActive(false);
-		const file = e.dataTransfer.files[0];
-		handleFileUpload(file, type);
+	const handleRemoveCover = () => {
+		setCoverImage(null);
 	};
 
-	// Process file upload
-	const handleFileUpload = (file: File | undefined, type: 'profile' | 'cover') => {
-		if (!file) return;
-
-		const maxSize = type === 'profile' ? 4 * 1024 * 1024 : 2 * 1024 * 1024;
-		const validFormats = ["image/jpeg", "image/png"];
-		const fieldName = type === 'profile' ? 'profilePhoto' : 'coverPhoto';
-
-		if (!validFormats.includes(file.type)) {
-			setError(fieldName, {
-				type: "manual",
-				message: "Please upload a JPEG or PNG image only"
-			});
-			return;
-		}
-
-		if (file.size > maxSize) {
-			setError(fieldName, {
-				type: "manual",
-				message: `File must be smaller than ${maxSize / (1024 * 1024)}MB`
-			});
-			return;
-		}
-
-		clearErrors(fieldName);
-		const reader = new FileReader();
-
-		reader.onloadend = () => {
-			if (type === 'profile') {
-				profilePhotoRef.current = file;
-				setSelectedProfileImage(reader.result as string);
-			} else {
-				coverPhotoRef.current = file;
-				setSelectedCoverImage(reader.result as string);
-			}
-		};
-
-		reader.readAsDataURL(file);
-	};
 
 	// Handle address type change
 	const handleAddressTypeChange = (value: string) => {
@@ -141,7 +97,7 @@ const DesignerSignupForm = () => {
 				return;
 			}
 
-			if (!profilePhotoRef.current || !coverPhotoRef.current) {
+			if (!profileImage?.file || !coverImage?.file) {
 				toast({
 					title: "Images Required",
 					description: "Please upload both profile and cover photos",
@@ -153,8 +109,8 @@ const DesignerSignupForm = () => {
 			const submissionData = {
 				...data,
 				userId,
-				profilePhoto: profilePhotoRef.current,
-				coverPhoto: coverPhotoRef.current,
+				profilePhoto: profileImage.file,
+				coverPhoto: coverImage.file,
 			};
 
 			await handleDesignerSignup(submissionData);
@@ -273,104 +229,6 @@ const DesignerSignupForm = () => {
 		);
 	};
 
-	// Image upload component
-	const ImageUploadBox = ({ type, selectedImage, register, errors, handlePhotoChange }: {
-		type: 'profile' | 'cover';
-		selectedImage: string | null;
-		register: any;
-		errors: any;
-		handlePhotoChange: (e: React.ChangeEvent<HTMLInputElement>, type: 'profile' | 'cover') => void;
-	}) => {
-		const fileInputRef = useRef<HTMLInputElement>(null);
-
-		const handleBoxClick = (e: React.MouseEvent) => {
-			e.preventDefault();
-			e.stopPropagation();
-			console.log('Clicking', fileInputRef.current);
-			if (fileInputRef.current) {
-				fileInputRef.current.click();
-			}
-		};
-
-
-		return (
-			<div className="w-full sm:w-auto">
-
-				<div
-					role="button"
-					tabIndex={0}
-					onClick={handleBoxClick}
-					onKeyDown={(e) => e.key === 'Enter' && handleBoxClick(e as any)}
-					onDragOver={handleDragOver}
-					onDragLeave={handleDragLeave}
-					onDrop={(e) => handleDrop(e, type)}
-					className={`
-            relative group cursor-pointer 
-            transition-all duration-300
-            ${dragActive ? "scale-105" : "hover:scale-[1.02]"}
-            w-full sm:w-auto
-            focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-black
-          `}
-				>
-					<div className={`
-            relative overflow-hidden
-            ${type === 'profile'
-							? 'w-24 h-24 md:w-32 md:h-32 lg:w-48 lg:h-48 rounded-full mx-auto'
-							: 'w-full h-36 md:h-48 lg:h-64 rounded-xl'}
-            ${selectedImage ? '' : 'border-2 border-dashed border-white/20'}
-            bg-black/20 transition-all duration-300
-            ${dragActive ? 'border-accent' : 'hover:border-white/40'}
-          `}>
-						{selectedImage ? (
-							<Image
-								src={selectedImage}
-								alt={`${type} photo`}
-								layout="fill"
-								objectFit="cover"
-								className="transition-transform duration-300 group-hover:scale-105"
-							/>
-						) : (
-							<div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-4 text-center">
-								<svg className="w-6 h-6 md:w-8 md:h-8 text-white/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-									<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-										d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-									/>
-								</svg>
-								<span className="text-xs md:text-sm text-white/40">
-									{type === 'profile' ? 'Profile Photo' : 'Cover Photo'}
-								</span>
-								<span className="text-xs text-white/30">Click or Drag & Drop</span>
-							</div>
-						)}
-					</div>
-
-					<input
-						ref={fileInputRef}
-						type="file"
-						accept="image/jpeg,image/png"
-						onChange={(e) => handlePhotoChange(e, type)}
-						className="hidden"
-						{...register(type === 'profile' ? 'profilePhoto' : 'coverPhoto')}
-					/>
-				</div>
-
-				{errors[type === 'profile' ? 'profilePhoto' : 'coverPhoto'] && (
-					<p className="text-destructive text-xs md:text-sm mt-2 text-center">
-						{errors[type === 'profile' ? 'profilePhoto' : 'coverPhoto'].message}
-					</p>
-				)}
-
-				<p className="text-white/40 text-xs text-center mt-2">
-					{type === 'profile'
-						? 'Upload a professional profile photo'
-						: 'Upload a cover image for your profile'}
-				</p>
-				<p className="text-white/30 text-xs text-center">
-					Max size: {type === 'profile' ? '4MB' : '2MB'} (JPEG or PNG)
-				</p>
-			</div>
-		);
-	};
 
 	return (
 		<form onSubmit={handleSubmit(onSubmit)} className="max-w-4xl mx-auto px-4 md:px-0">
@@ -380,6 +238,7 @@ const DesignerSignupForm = () => {
 					animate={{ opacity: 1, y: 0 }}
 					className="text-center space-y-2"
 				>
+
 					<h1 className="text-3xl md:text-4xl font-heading1">Designer Registration</h1>
 					<p className="text-sm md:text-md text-white/60">Join our creative community</p>
 				</motion.div>
@@ -504,21 +363,21 @@ const DesignerSignupForm = () => {
 							<div className="bg-black/20 rounded-2xl p-4 md:p-8">
 								<div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
 									<div className="w-full flex justify-center items-center">
-										<ImageUploadBox
+										<ImageUploader
 											type="profile"
-											selectedImage={selectedProfileImage}
-											register={register}
-											errors={errors}
-											handlePhotoChange={handlePhotoChange}
+											value={profileImage}
+											onChange={handleProfileImage}
+											onRemove={handleRemoveProfile}
+											error={errors.profilePhoto?.message}
 										/>
 									</div>
 									<div className="w-full flex justify-center items-center">
-										<ImageUploadBox
+										<ImageUploader
 											type="cover"
-											selectedImage={selectedCoverImage}
-											register={register}
-											errors={errors}
-											handlePhotoChange={handlePhotoChange}
+											value={coverImage}
+											onChange={handleCoverImage}
+											onRemove={handleRemoveCover}
+											error={errors.coverPhoto?.message}
 										/>
 									</div>
 								</div>
